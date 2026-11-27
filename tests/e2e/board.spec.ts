@@ -1,0 +1,105 @@
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+
+/** Dock and overlay open side by side in one browser profile, like OBS. */
+async function open(context: BrowserContext): Promise<{ dock: Page; overlay: Page }> {
+  const overlay = await context.newPage();
+  await overlay.setViewportSize({ width: 1920, height: 1080 });
+  await overlay.goto("#/overlay");
+  const dock = await context.newPage();
+  await dock.setViewportSize({ width: 420, height: 900 });
+  await dock.goto("#/dock");
+  return { dock, overlay };
+}
+const board = (p: Page) => p.getByTestId("scroller").first();
+
+test("first open seeds the sample board with its pundits", async ({ context }) => {
+  const { dock, overlay } = await open(context);
+  await expect(dock.getByRole("tab")).toHaveText(["ภาพรวม", "การแข่งขัน", "ผู้ทายผล", "ม้า"]);
+  await expect(overlay.getByTestId("race-name")).toHaveText("JAPAN CUP");
+  await expect(overlay.getByTestId("row")).toHaveCount(4);
+  await expect(overlay.getByTestId("pundit-head")).toHaveCount(2);
+  await expect(overlay.locator("[data-no='3'] [data-testid=pick]").first()).toHaveText("◎");
+  await expect(overlay.locator("[data-no='1'] [data-silks]")).toHaveAttribute("data-silks", "Carrot");
+});
+
+test("pundits: add up to 4, remove down to 1, picks reach the overlay", async ({ context }) => {
+  const { dock, overlay } = await open(context);
+  await dock.getByRole("tab", { name: "ผู้ทายผล" }).click();
+  const add = dock.getByRole("button", { name: "+ เพิ่มผู้ทายผล" });
+  await add.click();
+  await add.click();
+  await expect(add).toBeDisabled();
+  await expect(overlay.getByTestId("pundit-head")).toHaveCount(4);
+  await dock.getByLabel("ชื่อผู้ทายผลคนที่ 4").fill("กุ้ง");
+  await expect(overlay.getByTestId("pundit-head").nth(3)).toHaveText("กุ้ง");
+  await dock.getByLabel("กุ้ง เบอร์ 2").selectOption("☆");
+  await expect(overlay.locator("[data-no='2'] [data-testid=pick]").nth(3)).toHaveText("☆");
+  for (let i = 4; i > 1; i--) await dock.getByRole("button", { name: `ลบผู้ทายผลคนที่ ${i}` }).click();
+  await expect(dock.getByRole("button", { name: "ลบผู้ทายผลคนที่ 1" })).toBeDisabled();
+  await expect(overlay.getByTestId("pundit-head")).toHaveCount(1);
+});
+
+test("the dock scrolls the overlay and the table header stays on top", async ({ context }) => {
+  const { dock, overlay } = await open(context);
+  // a long field so there is something to scroll
+  await dock.getByRole("tab", { name: "ม้า" }).click();
+  for (let i = 0; i < 10; i++) await dock.getByRole("button", { name: "+ เพิ่มม้า" }).click();
+  await expect(overlay.getByTestId("row")).toHaveCount(14);
+  await dock.getByRole("tab", { name: "ภาพรวม" }).click();
+  await dock.getByRole("button", { name: "▼ ลง" }).click();
+  await dock.getByRole("button", { name: "▼ ลง" }).click();
+  await expect(dock.getByTestId("scroll-at")).toHaveText("แถวบนสุด: เบอร์ 2 Cosmo Kuranda");
+  await expect.poll(() => board(overlay).evaluate((e) => e.scrollTop)).toBeGreaterThan(400);
+  const head = await overlay.getByTestId("table-head").boundingBox();
+  expect(head!.y).toBeLessThan(2);
+  const row2 = await overlay.locator("[data-testid=row][data-no='2']").boundingBox();
+  expect(Math.abs(row2!.y - head!.height)).toBeLessThan(4);
+  await dock.getByRole("button", { name: "บนสุด" }).click();
+  await expect.poll(() => board(overlay).evaluate((e) => e.scrollTop)).toBe(0);
+});
+
+test("number styles follow the dock like compact and intro", async ({ context }) => {
+  const { dock, overlay } = await open(context);
+  await dock.getByRole("tab", { name: "การแข่งขัน" }).click();
+  const pp = overlay.locator("[data-no='3'] > div").nth(1);
+  await expect(pp).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await dock.getByLabel("สีช่อง PP").selectOption("jra");
+  await expect(pp).toHaveCSS("background-color", "rgb(232, 57, 42)");
+  await dock.getByRole("switch", { name: "แสดงช่อง BK (ซอง)" }).click();
+  await expect(overlay.getByTestId("table-head").getByText("BK", { exact: true })).toHaveCount(0);
+});
+
+test("export JSON, then import a one-race file after confirming", async ({ context }) => {
+  const { dock, overlay } = await open(context);
+  await dock.getByRole("button", { name: "ส่งออก JSON" }).click();
+  const text = await dock.getByTestId("export-text").inputValue();
+  const file = JSON.parse(text);
+  expect(file.race.name).toBe("Japan Cup");
+  file.race.name = "Arima Kinen";
+  file.runners = file.runners.slice(0, 2);
+  await dock.getByTestId("import-file").setInputFiles({ name: "arima.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(file)) });
+  await dock.getByRole("button", { name: "แทนที่" }).click();
+  await expect(overlay.getByTestId("race-name")).toHaveText("ARIMA KINEN");
+  await expect(overlay.getByTestId("row")).toHaveCount(2);
+  await dock.getByRole("button", { name: "วาง JSON" }).click();
+  await dock.getByLabel("วาง JSON").fill('{"race":{"date":"2026"}}');
+  await dock.getByRole("button", { name: "ตรวจและนำเข้า" }).click();
+  await expect(dock.getByRole("alert")).toContainText("race.date");
+});
+
+test("the top-left picture and the JPG / PDF export", async ({ context }) => {
+  const { dock, overlay } = await open(context);
+  await dock.getByRole("tab", { name: "การแข่งขัน" }).click();
+  const png = await dock.evaluate(() => { const c = document.createElement("canvas"); c.width = 40; c.height = 30; c.getContext("2d")!.fillRect(0, 0, 40, 30); return c.toDataURL("image/png"); });
+  await dock.getByTestId("photo-file").setInputFiles({ name: "p.png", mimeType: "image/png", buffer: Buffer.from(png.split(",")[1], "base64") });
+  await expect(overlay.getByTestId("photo")).toHaveAttribute("src", /^data:image\/jpeg/);
+  await dock.getByRole("tab", { name: "ภาพรวม" }).click();
+  // no save dialog in the test browser: the file downloads
+  await dock.evaluate(() => { (window as unknown as { showSaveFilePicker?: unknown }).showSaveFilePicker = undefined; });
+  for (const [btn, ext] of [["บันทึก JPG", "jpg"], ["บันทึก PDF", "pdf"]]) {
+    const dl = dock.waitForEvent("download");
+    await dock.getByRole("button", { name: btn }).click();
+    const d = await dl;
+    expect(d.suggestedFilename()).toBe(`2026-11-29-12r-japan-cup.${ext}`);
+  }
+});
