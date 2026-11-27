@@ -167,8 +167,8 @@ function Row({ b, h }: { b: BoardData; h: Runner }) {
       <HorseCell h={h} />
       <JockeyCell h={h} />
       {b.pundits.map((p, i) => (
-        <div key={i} data-testid="pick" className="flex items-center justify-center text-[24px] font-bold" style={{ color: INK, borderRight: `1px solid ${LINE}` }}>
-          {p.picks[String(h.number)] ?? <span className="tracking-[.12em]">--</span>}
+        <div key={i} data-testid="pick" data-mark={p.picks[String(h.number)] ?? ""} className="flex items-center justify-center" style={{ color: INK, borderRight: `1px solid ${LINE}` }}>
+          <Mark m={p.picks[String(h.number)]} />
         </div>
       ))}
       {Array.from({ length: FORM_RACES }, (_, i) => <PastCell key={i} r={h.form[i]} last={i === FORM_RACES - 1} />)}
@@ -192,8 +192,9 @@ function Title({ b }: { b: BoardData }) {
         </span>
       </div>
       {r.round && (
-        <span data-testid="round" className="flex h-[102px] min-w-[122px] items-center justify-center rounded-[10px] bg-[#00157D] px-3 text-[58px] font-bold text-white">
-          {r.round.replace(/R$/i, "")}<span className="text-[42px]">{/R$/i.test(r.round) ? "R" : ""}</span>
+        <span data-testid="round" className="flex h-[102px] min-w-[122px] items-center justify-center rounded-[10px] bg-[#00157D] px-3 leading-none font-bold text-white" style={{ fontFamily: '"Alumni Sans", sans-serif' }}>
+          <span className="text-[59px]">{r.round.replace(/R$/i, "")}</span>
+          {/R$/i.test(r.round) && <span className="text-[48px]">R</span>}
         </span>
       )}
     </div>
@@ -226,5 +227,23 @@ export function Board({ b, sticky = false }: { b: BoardData; sticky?: boolean })
         </div>
       </div>
     </div>
+  );
+}
+
+/** Marks drawn as SVG so each sits dead centre at one size (font glyphs differ in size and baseline). */
+function Mark({ m }: { m?: string }) {
+  const line = { fill: "none", stroke: "currentColor", strokeWidth: 2.4 };
+  const shape: Record<string, JSX.Element> = {
+    "◎": <><circle cx="16" cy="16" r="13" {...line} /><circle cx="16" cy="16" r="7.5" {...line} /></>,
+    "○": <circle cx="16" cy="16" r="13" {...line} />,
+    "▲": <path d="M16 3 L30 28 H2 Z" fill="currentColor" />,
+    "△": <path d="M16 4.5 L28.5 27 H3.5 Z" {...line} strokeLinejoin="round" />,
+    "☆": <path d="M16 2.5 L19.5 12 L29.5 12.3 L21.6 18.5 L24.4 28.2 L16 22.5 L7.6 28.2 L10.4 18.5 L2.5 12.3 L12.5 12 Z" {...line} strokeLinejoin="round" />,
+    "×": <path d="M5 5 L27 27 M27 5 L5 27" {...line} strokeWidth={3} strokeLinecap="round" />,
+  };
+  return (
+    <svg width="32" height="32" viewBox="0 0 32 32" aria-label={m || "-"}>
+      {(m && shape[m]) || <path d="M4 16 H13 M19 16 H28" {...line} strokeWidth={3} />}
+    </svg>
   );
 }

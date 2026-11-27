@@ -128,7 +128,7 @@ export const BoardSchema = z
 export type BoardInput = z.input<typeof BoardSchema>;
 export type Board = z.output<typeof BoardSchema>;
 
-/** What the dock stores: the board plus where the overlay is scrolled (0 = top, k = horse row k just under the header). */
+/** What the dock stores: the board plus how far the overlay is scrolled, in board px (0 = top), free, no snapping. */
 export type AppData = Board & { scroll: number };
 
 export type ParseResult = { ok: true; board: Board } | { ok: false; error: string };
