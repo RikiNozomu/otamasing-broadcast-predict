@@ -17,7 +17,7 @@ test("first open seeds the sample board with its pundits", async ({ context }) =
   await expect(dock.getByRole("tab")).toHaveText(["ภาพรวม", "การแข่งขัน", "ผู้ทายผล", "ม้า"]);
   await expect(overlay.getByTestId("race-name")).toHaveText("JAPAN CUP");
   await expect(overlay.getByTestId("row")).toHaveCount(4);
-  await expect(overlay.getByTestId("pundit-head")).toHaveCount(2);
+  await expect(overlay.getByTestId("board").getByTestId("pundit-head")).toHaveCount(2);
   await expect(overlay.locator("[data-no='3'] [data-testid=pick]").first()).toHaveAttribute("data-mark", "◎");
   await expect(overlay.locator("[data-no='1'] [data-silks]")).toHaveAttribute("data-silks", "Carrot");
 });
@@ -29,14 +29,14 @@ test("pundits: add up to 4, remove down to 1, picks reach the overlay", async ({
   await add.click();
   await add.click();
   await expect(add).toBeDisabled();
-  await expect(overlay.getByTestId("pundit-head")).toHaveCount(4);
+  await expect(overlay.getByTestId("board").getByTestId("pundit-head")).toHaveCount(4);
   await dock.getByLabel("ชื่อผู้ทายผลคนที่ 4").fill("กุ้ง");
-  await expect(overlay.getByTestId("pundit-head").nth(3)).toHaveText("กุ้ง");
+  await expect(overlay.getByTestId("board").getByTestId("pundit-head").nth(3)).toHaveText("กุ้ง");
   await dock.getByLabel("กุ้ง เบอร์ 2").selectOption("☆");
   await expect(overlay.locator("[data-no='2'] [data-testid=pick]").nth(3)).toHaveAttribute("data-mark", "☆");
   for (let i = 4; i > 1; i--) await dock.getByRole("button", { name: `ลบผู้ทายผลคนที่ ${i}` }).click();
   await expect(dock.getByRole("button", { name: "ลบผู้ทายผลคนที่ 1" })).toBeDisabled();
-  await expect(overlay.getByTestId("pundit-head")).toHaveCount(1);
+  await expect(overlay.getByTestId("board").getByTestId("pundit-head")).toHaveCount(1);
 });
 
 test("the dock scrolls the overlay freely and the table header stays on top", async ({ context }) => {
@@ -50,8 +50,11 @@ test("the dock scrolls the overlay freely and the table header stays on top", as
   // any position, not snapped to a row: 437 board px = 437 * 1920 / 1418 screen px
   await dock.getByLabel("ตำแหน่งตาราง").fill("437");
   await expect.poll(top).toBeCloseTo((437 * 1920) / 1418, 0);
-  const head = await overlay.getByTestId("table-head").boundingBox();
-  expect(head!.y).toBeLessThan(2);
+  // the header floats a gap below the top, with nothing of the board drawn above it
+  const head = await overlay.getByTestId("floating-head").boundingBox();
+  expect(head!.y).toBeCloseTo((38 * 1920) / 1418, 0);
+  await expect(overlay.getByTestId("floating-head")).toBeVisible();
+  expect(await board(overlay).evaluate((e) => e.style.clipPath)).toMatch(/^inset\(/);
   // the mouse wheel over the dock preview scrolls too
   const preview = dock.getByTestId("scroll-preview");
   await preview.hover();
@@ -59,6 +62,7 @@ test("the dock scrolls the overlay freely and the table header stays on top", as
   await expect.poll(async () => (await dock.getByLabel("ตำแหน่งตาราง").inputValue()) !== "437").toBe(true);
   await dock.getByRole("button", { name: "บนสุด" }).click();
   await expect.poll(top).toBe(0);
+  await expect(overlay.getByTestId("floating-head")).toBeHidden();
 });
 
 test("number styles follow the dock like compact and intro", async ({ context }) => {
