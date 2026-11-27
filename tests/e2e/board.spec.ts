@@ -51,10 +51,10 @@ test("the dock scrolls the overlay freely and the table header stays on top", as
   // any position, not snapped to a row: 437 board px = 437 * 1920 / 1418 screen px
   await dock.getByLabel("ตำแหน่งตาราง").fill("437");
   await expect.poll(top).toBeCloseTo((437 * 1920) / 1418, 0);
-  // the header floats a gap below the top; the board's box starts under it, so nothing is drawn above (see-through in OBS)
-  const head = await overlay.getByTestId("floating-head").boundingBox();
-  expect(head!.y).toBeCloseTo((38 * 1920) / 1418, 0);
-  await expect(overlay.getByTestId("floating-head")).toBeVisible();
+  // the header floats a gap below the top and the board's box starts under it: rows scroll inside, nothing drawn above
+  const head = overlay.getByTestId("floating-head");
+  await expect(head).toBeVisible();
+  expect((await head.boundingBox())!.y).toBeCloseTo((38 * 1920) / 1418, 0);
   expect((await board(overlay).boundingBox())!.y).toBeCloseTo(((38 + 54) * 1920) / 1418, 0);
   expect(await overlay.evaluate(() => [getComputedStyle(document.documentElement).colorScheme, getComputedStyle(document.documentElement).backgroundColor, getComputedStyle(document.body).backgroundColor]))
     .toEqual(["light", "rgba(0, 0, 0, 0)", "rgba(0, 0, 0, 0)"]);
@@ -138,4 +138,21 @@ test("past races are edited one tab at a time as a labelled form", async ({ cont
   await ed.getByRole("tab", { name: "2 ครั้งก่อน +" }).click();
   await ed.getByRole("button", { name: "+ เพิ่มผลงาน 2 ครั้งก่อน" }).click();
   await expect(ed.getByLabel("วันที่")).toBeVisible();
+});
+
+test("fit shows the whole board scaled to the screen height", async ({ context }) => {
+  const { dock, overlay } = await open(context);
+  await dock.getByRole("tab", { name: "ม้า" }).click();
+  for (let i = 0; i < 10; i++) await dock.getByRole("button", { name: "+ เพิ่มม้า" }).click();
+  await dock.getByRole("tab", { name: "ภาพรวม" }).click();
+  await dock.getByLabel("ตำแหน่งตาราง").fill("437");
+  await dock.getByRole("switch", { name: "ย่อให้เห็นทั้งตาราง (ตามความสูงจอ)" }).click();
+  await expect(dock.getByLabel("ตำแหน่งตาราง")).toBeDisabled();
+  // the whole board fits the 1080 px height, centred, nothing scrolled and no floating header
+  const b = overlay.getByTestId("board");
+  await expect.poll(async () => Math.round((await b.boundingBox())!.height)).toBe(1080);
+  const box = (await b.boundingBox())!;
+  expect(box.y).toBeCloseTo(0, 0);
+  expect(box.x + box.width / 2).toBeCloseTo(960, 0);
+  await expect(overlay.getByTestId("floating-head")).toBeHidden();
 });

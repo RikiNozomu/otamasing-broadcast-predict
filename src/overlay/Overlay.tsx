@@ -1,7 +1,7 @@
 /**
  * The OBS Browser Source: the board scaled to the page width, scrolled to the dock's position
- * (smoothly). Once the title has scrolled away the table header floats HEAD_GAP below the top,
- * and the band above and beside it is see-through (nothing is drawn there).
+ * (smoothly), on a see-through page. Once the title has scrolled away the table header floats HEAD_GAP
+ * below the top and the rows scroll inside under it; the OBS scene stays put behind and around the table.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useData } from "../lib/store";
@@ -22,18 +22,22 @@ export function ScrolledBoard() {
   const d = useData();
   const box = useRef<HTMLDivElement>(null);
   const head = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState(1);
+  const [size, setSize] = useState({ w: BOARD_W, h: VIEW_H });
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
-    const fit = () => setZoom(el.clientWidth / BOARD_W);
+    const fit = () => setSize({ w: el.clientWidth, h: el.clientHeight });
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  // normally the board fills the width and scrolls; "fit" shrinks it to the height so the whole board shows, centred
+  const zoom = d.fit ? Math.min(size.w / BOARD_W, size.h / boardHeight(d.runners.length)) : size.w / BOARD_W;
   const target = useRef(0);
-  target.current = d.scroll * zoom;
+  target.current = d.fit ? 0 : d.scroll * zoom; // fit: eases back to the top
+  const fitRef = useRef(d.fit);
+  fitRef.current = d.fit;
   useEffect(() => {
     let raf = 0;
     const step = () => {
@@ -44,8 +48,8 @@ export function ScrolledBoard() {
         // ease 18% of the way each frame (at least 1 px, since scrollTop rounds), then land exactly
         const pos = Math.abs(diff) > 1 ? cur + Math.sign(diff) * Math.max(1, Math.abs(diff) * 0.18) : target.current;
         // past the point where the board's own header reaches HEAD_GAP: show the floating copy and move the board's box
-        // down to just under it, so nothing at all is drawn above (a clip-path there came out black in OBS)
-        const z = el.clientWidth / BOARD_W, stuck = pos / z > HEAD_Y - HEAD_GAP, top = stuck ? (HEAD_GAP + HEAD_H) * z : 0;
+        // down to just under it, so the rows scroll inside under the header and the scene stays behind (a clip-path came out black in OBS)
+        const z = el.clientWidth / BOARD_W, stuck = !fitRef.current && pos / z > HEAD_Y - HEAD_GAP, top = stuck ? (HEAD_GAP + HEAD_H) * z : 0;
         el.style.top = `${top}px`;
         el.scrollTop = pos + top;
         if (head.current) head.current.style.visibility = stuck ? "visible" : "hidden";
@@ -57,8 +61,8 @@ export function ScrolledBoard() {
   }, []);
   return (
     <>
-      <div ref={box} data-testid="scroller" className="absolute inset-0 overflow-hidden bg-white">
-        <div style={{ zoom }}><Board b={d} /></div>
+      <div ref={box} data-testid="scroller" className="absolute inset-0 overflow-hidden">
+        <div className="mx-auto w-fit" style={{ zoom }}><Board b={d} seeThrough /></div>
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0" style={{ zoom }}>
         <div ref={head} data-testid="floating-head" className="invisible absolute" style={{ fontFamily: BOARD_FONT, top: HEAD_GAP, left: TABLE_X, width: TABLE_W }}><TableHead b={d} /></div>
@@ -70,8 +74,7 @@ export function ScrolledBoard() {
 export function Overlay() {
   useEffect(() => {
     document.body.classList.add("overflow-hidden");
-    // OBS shows the scene through the band above the floating header. The app's dark colour-scheme
-    // paints an opaque dark canvas behind a transparent page, so switch it off here too.
+    // a transparent page for OBS; the app's dark colour-scheme would paint an opaque dark canvas behind it
     document.documentElement.style.colorScheme = "light";
     document.documentElement.style.background = document.body.style.background = "transparent";
     document.title = "โอตะม้าซิ่ง Broadcast Predict · Overlay";

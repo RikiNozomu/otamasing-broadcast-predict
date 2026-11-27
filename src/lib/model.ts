@@ -140,8 +140,11 @@ export const BoardSchema = z
 export type BoardInput = z.input<typeof BoardSchema>;
 export type Board = z.output<typeof BoardSchema>;
 
-/** What the dock stores: the board plus how far the overlay is scrolled, in board px (0 = top), free, no snapping. */
-export type AppData = Board & { scroll: number };
+/**
+ * What the dock stores: the board plus how far the overlay is scrolled, in board px (0 = top), free, no snapping,
+ * and whether the overlay shows the whole board at once (scaled to the screen height).
+ */
+export type AppData = Board & { scroll: number; fit: boolean };
 
 export type ParseResult = { ok: true; board: Board } | { ok: false; error: string };
 
@@ -160,9 +163,9 @@ export function parseBoard(text: string): ParseResult {
   return { ok: false, error: `${issue.path.join(".") || "ไฟล์"}: ${issue.message}` };
 }
 
-/** The file written by "ส่งออก JSON": the board without the dock's scroll position. */
+/** The file written by "ส่งออก JSON": the board without the dock's scroll position and fit switch. */
 export function exportBoard(d: AppData): Board {
-  const { scroll: _, ...board } = d;
+  const { scroll: _, fit: __, ...board } = d;
   return board;
 }
 

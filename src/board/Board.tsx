@@ -210,10 +210,13 @@ function Title({ b }: { b: BoardData }) {
 /**
  * The whole board. The overlay keeps a copy of the table header on top while it scrolls (see Overlay).
  */
-export function Board({ b }: { b: BoardData }) {
+export function Board({ b, seeThrough = false }: { b: BoardData; seeThrough?: boolean }) {
+  // seeThrough (OBS overlay): only the title block and the table are drawn, the title block fading out at the bottom
+  // instead of into white, so the scene shows beside and around the table. The JPG / PDF export stays all white.
+  const fade = "linear-gradient(to bottom, #000 45%, transparent 100%)";
   return (
-    <div data-testid="board" className="relative bg-white" style={{ fontFamily: BOARD_FONT, width: BOARD_W, minHeight: boardHeight(b.runners.length) }}>
-      <div className="absolute inset-x-0 top-0 h-[420px] overflow-hidden">
+    <div data-testid="board" className={cx("relative", !seeThrough && "bg-white")} style={{ fontFamily: BOARD_FONT, width: BOARD_W, minHeight: boardHeight(b.runners.length) }}>
+      <div className={cx("absolute inset-x-0 top-0 h-[420px] overflow-hidden", seeThrough && "bg-white")} style={seeThrough ? { maskImage: fade, WebkitMaskImage: fade } : undefined}>
         {b.photo && (
           <div className="absolute top-0 left-0 h-[420px] w-[1100px] overflow-hidden">
             <img data-testid="photo" src={b.photo} alt="" className="size-full object-cover" style={{ transform: photoTransform(b.photoPos) }} />
@@ -221,7 +224,7 @@ export function Board({ b }: { b: BoardData }) {
             <div className="absolute inset-0 bg-[linear-gradient(to_right,transparent_35%,#fff_92%)]" />
           </div>
         )}
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_45%,#fff_100%)]" />
+        {!seeThrough && <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_45%,#fff_100%)]" />}
       </div>
       <Logo className="absolute top-[15px] left-[20px] w-[145px] drop-shadow-[0_1px_3px_rgb(0_0_0/.5)]" />
       <Title b={b} />
