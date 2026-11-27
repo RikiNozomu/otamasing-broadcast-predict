@@ -50,11 +50,13 @@ test("the dock scrolls the overlay freely and the table header stays on top", as
   // any position, not snapped to a row: 437 board px = 437 * 1920 / 1418 screen px
   await dock.getByLabel("ตำแหน่งตาราง").fill("437");
   await expect.poll(top).toBeCloseTo((437 * 1920) / 1418, 0);
-  // the header floats a gap below the top, on a white band that hides the board above it
-  const head = await overlay.getByTestId("floating-head").getByTestId("table-head").boundingBox();
+  // the header floats a gap below the top; the board is cut above it and the page behind is see-through for OBS
+  const head = await overlay.getByTestId("floating-head").boundingBox();
   expect(head!.y).toBeCloseTo((38 * 1920) / 1418, 0);
   await expect(overlay.getByTestId("floating-head")).toBeVisible();
-  expect(await overlay.getByTestId("floating-head").evaluate((e) => getComputedStyle(e).backgroundColor)).toBe("rgb(255, 255, 255)");
+  expect(await board(overlay).evaluate((e) => e.style.clipPath)).toMatch(/^inset\(/);
+  expect(await overlay.evaluate(() => [getComputedStyle(document.documentElement).colorScheme, getComputedStyle(document.documentElement).backgroundColor, getComputedStyle(document.body).backgroundColor]))
+    .toEqual(["light", "rgba(0, 0, 0, 0)", "rgba(0, 0, 0, 0)"]);
   // the mouse wheel over the dock preview scrolls too
   const preview = dock.getByTestId("scroll-preview");
   await preview.hover();

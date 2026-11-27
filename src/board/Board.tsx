@@ -41,7 +41,9 @@ function Rating({ text, className }: { text: string; className?: string }) {
 
 /** A board flag with the thin grey frame of the Figma "flag" component. */
 const BoardFlag = ({ code, className }: { code: string; className?: string }) =>
-  code ? <Flag code={code} className={cx("rounded-none", className)} style={{ boxShadow: `0 0 0 1px ${LINE}` }} /> : null;
+  !code ? null : code === "MIHO" || code === "RITTO"
+    ? <Flag code={code} className={className} style={{ boxShadow: "none" }} /> // the pill as is, no frame
+    : <Flag code={code} className={cx("rounded-none", className)} style={{ boxShadow: `0 0 0 1px ${LINE}` }} />;
 
 /** The BK / PP cell: the whole cell takes the box colour; plain = black number on white. */
 function NumberCell({ value, colors }: { value: number; colors: Pair | null }) {

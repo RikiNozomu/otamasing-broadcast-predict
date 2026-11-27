@@ -1,7 +1,7 @@
 /**
  * The OBS Browser Source: the board scaled to the page width, scrolled to the dock's position
- * (smoothly). Once the title has scrolled away the table header floats HEAD_GAP below the top
- * on a white band.
+ * (smoothly). Once the title has scrolled away the table header floats HEAD_GAP below the top,
+ * and the band above and beside it is see-through.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useData } from "../lib/store";
@@ -43,8 +43,9 @@ export function ScrolledBoard() {
         // ease 18% of the way each frame (at least 1 px, since scrollTop rounds), then land exactly
         if (Math.abs(diff) > 1) el.scrollTop = cur + Math.sign(diff) * Math.max(1, Math.abs(diff) * 0.18);
         else if (diff !== 0) el.scrollTop = target.current;
-        // past the point where the board's own header reaches HEAD_GAP: show the floating copy on a white band
+        // past the point where the board's own header reaches HEAD_GAP: show the floating copy, cut the board above its bottom
         const z = el.clientWidth / BOARD_W, stuck = el.scrollTop / z > HEAD_Y - HEAD_GAP;
+        el.style.clipPath = stuck ? `inset(${(HEAD_GAP + HEAD_H) * z}px 0 0 0)` : "";
         if (head.current) head.current.style.visibility = stuck ? "visible" : "hidden";
       }
       raf = requestAnimationFrame(step);
@@ -58,9 +59,7 @@ export function ScrolledBoard() {
         <div style={{ zoom }}><Board b={d} /></div>
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0" style={{ zoom }}>
-        <div ref={head} data-testid="floating-head" className="invisible absolute inset-x-0 top-0 bg-white" style={{ fontFamily: BOARD_FONT, height: HEAD_GAP + HEAD_H }}>
-          <div className="absolute" style={{ top: HEAD_GAP, left: TABLE_X, width: TABLE_W }}><TableHead b={d} /></div>
-        </div>
+        <div ref={head} data-testid="floating-head" className="invisible absolute" style={{ fontFamily: BOARD_FONT, top: HEAD_GAP, left: TABLE_X, width: TABLE_W }}><TableHead b={d} /></div>
       </div>
     </>
   );
@@ -69,6 +68,10 @@ export function ScrolledBoard() {
 export function Overlay() {
   useEffect(() => {
     document.body.classList.add("overflow-hidden");
+    // OBS shows the scene through the band above the floating header. The app's dark colour-scheme
+    // paints an opaque dark canvas behind a transparent page, so switch it off here too.
+    document.documentElement.style.colorScheme = "light";
+    document.documentElement.style.background = document.body.style.background = "transparent";
     document.title = "โอตะม้าซิ่ง Broadcast Predict · Overlay";
   }, []);
   return <div className="fixed inset-0"><ScrolledBoard /></div>;
