@@ -1,0 +1,12 @@
+/* Tailwind with the โอตะม้าซิ่ง design-system tokens (from otamasing-broadcast-shared). */
+@import "tailwindcss";
+
+@import "@otamasing/broadcast-shared/theme.css";
+
+@layer base {
+  :root { color-scheme: dark; }
+  body { @apply bg-studio font-body text-[15px] leading-normal text-ink; }
+  a { @apply text-yellow; }
+  button:not(:disabled), label[for] { cursor: pointer; }
+  :where(button, select, input, a, label, textarea):focus-visible { @apply outline-2 outline-offset-2 outline-yellow; }
+}
