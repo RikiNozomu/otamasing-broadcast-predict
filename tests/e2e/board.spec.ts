@@ -46,15 +46,16 @@ test("the dock scrolls the overlay freely and the table header stays on top", as
   for (let i = 0; i < 10; i++) await dock.getByRole("button", { name: "+ เพิ่มม้า" }).click();
   await expect(overlay.getByTestId("row")).toHaveCount(14);
   await dock.getByRole("tab", { name: "ภาพรวม" }).click();
-  const top = () => board(overlay).evaluate((e) => e.scrollTop);
+  // scroll position = scrollTop minus the box's offset under the floating header
+  const top = () => board(overlay).evaluate((e) => e.scrollTop - (parseFloat(e.style.top) || 0));
   // any position, not snapped to a row: 437 board px = 437 * 1920 / 1418 screen px
   await dock.getByLabel("ตำแหน่งตาราง").fill("437");
   await expect.poll(top).toBeCloseTo((437 * 1920) / 1418, 0);
-  // the header floats a gap below the top; the board is cut above it and the page behind is see-through for OBS
+  // the header floats a gap below the top; the board's box starts under it, so nothing is drawn above (see-through in OBS)
   const head = await overlay.getByTestId("floating-head").boundingBox();
   expect(head!.y).toBeCloseTo((38 * 1920) / 1418, 0);
   await expect(overlay.getByTestId("floating-head")).toBeVisible();
-  expect(await board(overlay).evaluate((e) => e.style.clipPath)).toMatch(/^inset\(/);
+  expect((await board(overlay).boundingBox())!.y).toBeCloseTo(((38 + 54) * 1920) / 1418, 0);
   expect(await overlay.evaluate(() => [getComputedStyle(document.documentElement).colorScheme, getComputedStyle(document.documentElement).backgroundColor, getComputedStyle(document.body).backgroundColor]))
     .toEqual(["light", "rgba(0, 0, 0, 0)", "rgba(0, 0, 0, 0)"]);
   // the mouse wheel over the dock preview scrolls too

@@ -1,7 +1,7 @@
 /**
  * The OBS Browser Source: the board scaled to the page width, scrolled to the dock's position
  * (smoothly). Once the title has scrolled away the table header floats HEAD_GAP below the top,
- * and the band above and beside it is see-through.
+ * and the band above and beside it is see-through (nothing is drawn there).
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useData } from "../lib/store";
@@ -39,13 +39,15 @@ export function ScrolledBoard() {
     const step = () => {
       const el = box.current;
       if (el) {
-        const cur = el.scrollTop, diff = target.current - cur;
+        // the box's own offset from the top (see below) is not part of the scroll position
+        const off = parseFloat(el.style.top) || 0, cur = el.scrollTop - off, diff = target.current - cur;
         // ease 18% of the way each frame (at least 1 px, since scrollTop rounds), then land exactly
-        if (Math.abs(diff) > 1) el.scrollTop = cur + Math.sign(diff) * Math.max(1, Math.abs(diff) * 0.18);
-        else if (diff !== 0) el.scrollTop = target.current;
-        // past the point where the board's own header reaches HEAD_GAP: show the floating copy, cut the board above its bottom
-        const z = el.clientWidth / BOARD_W, stuck = el.scrollTop / z > HEAD_Y - HEAD_GAP;
-        el.style.clipPath = stuck ? `inset(${(HEAD_GAP + HEAD_H) * z}px 0 0 0)` : "";
+        const pos = Math.abs(diff) > 1 ? cur + Math.sign(diff) * Math.max(1, Math.abs(diff) * 0.18) : target.current;
+        // past the point where the board's own header reaches HEAD_GAP: show the floating copy and move the board's box
+        // down to just under it, so nothing at all is drawn above (a clip-path there came out black in OBS)
+        const z = el.clientWidth / BOARD_W, stuck = pos / z > HEAD_Y - HEAD_GAP, top = stuck ? (HEAD_GAP + HEAD_H) * z : 0;
+        el.style.top = `${top}px`;
+        el.scrollTop = pos + top;
         if (head.current) head.current.style.visibility = stuck ? "visible" : "hidden";
       }
       raf = requestAnimationFrame(step);
