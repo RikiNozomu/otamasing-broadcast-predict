@@ -1,12 +1,12 @@
 /**
  * The OBS Browser Source: the board scaled to the page width, scrolled to the dock's position
- * (smoothly). Once the title has scrolled away the table header floats HEAD_GAP below the top,
- * on a frozen strip of the race picture.
+ * (smoothly). Once the title has scrolled away the table header floats HEAD_GAP below the top;
+ * everything else, background included, keeps scrolling.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cx } from "@otamasing/broadcast-shared/lib/cx";
 import { useData } from "../lib/store";
-import { Backdrop, Board, BOARD_FONT, BOARD_W, boardHeight, HEAD_H, HEAD_Y, TABLE_W, TABLE_X, TableHead } from "../board/Board";
+import { Board, BOARD_FONT, BOARD_W, boardHeight, HEAD_Y, TABLE_W, TABLE_X, TableHead } from "../board/Board";
 
 /** Height of the board seen on a 16:9 screen (the board is 1418 px wide). */
 export const VIEW_H = Math.round((BOARD_W * 9) / 16);
@@ -49,7 +49,7 @@ export function ScrolledBoard() {
         // ease 18% of the way each frame (at least 1 px, since scrollTop rounds), then land exactly
         if (Math.abs(diff) > 1) el.scrollTop = cur + Math.sign(diff) * Math.max(1, Math.abs(diff) * 0.18);
         else if (diff !== 0) el.scrollTop = target.current;
-        // past the point where the board's own header reaches HEAD_GAP: show the floating band
+        // past the point where the board's own header reaches HEAD_GAP: show the floating copy (only the header sticks)
         const stuck = el.scrollTop / (el.clientWidth / BOARD_W) > HEAD_Y - HEAD_GAP;
         if (head.current) head.current.style.visibility = stuck ? "visible" : "hidden";
       }
@@ -64,11 +64,7 @@ export function ScrolledBoard() {
         <div className="mx-auto w-fit" style={{ zoom }}><Board b={d} /></div>
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0" style={{ zoom }}>
-        {/* the strip of the board around the header at the moment it sticks, frozen: the race picture stays behind it */}
-        <div ref={head} data-testid="floating-head" className="invisible absolute top-0 left-0 overflow-hidden bg-white" style={{ fontFamily: BOARD_FONT, width: BOARD_W, height: HEAD_GAP + HEAD_H }}>
-          <Backdrop b={d} top={HEAD_GAP - HEAD_Y} />
-          <div className="absolute" style={{ top: HEAD_GAP, left: TABLE_X, width: TABLE_W }}><TableHead b={d} /></div>
-        </div>
+        <div ref={head} data-testid="floating-head" className="invisible absolute" style={{ fontFamily: BOARD_FONT, top: HEAD_GAP, left: TABLE_X, width: TABLE_W }}><TableHead b={d} /></div>
       </div>
     </>
   );
