@@ -213,7 +213,7 @@ export function Board({ b }: { b: BoardData }) {
     <div data-testid="board" className="relative bg-white" style={{ fontFamily: BOARD_FONT, width: BOARD_W, minHeight: boardHeight(b.runners.length) }}>
       <div className="absolute inset-x-0 top-0 h-[420px] overflow-hidden">
         {b.photo && (
-          <div className="absolute top-0 left-0 h-[420px] w-[1100px]">
+          <div className="absolute top-0 left-0 h-[420px] w-[1100px] overflow-hidden">
             <img data-testid="photo" src={b.photo} alt="" className="size-full object-cover" style={{ transform: photoTransform(b.photoPos) }} />
             {/* fades drawn as white gradients (the JPG / PDF export can't draw CSS masks) */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,transparent_35%,#fff_92%)]" />
