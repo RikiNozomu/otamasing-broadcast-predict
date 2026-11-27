@@ -119,3 +119,20 @@ test("the top-left picture and the JPG / PDF export", async ({ context }) => {
     expect(d.suggestedFilename()).toBe(`2026-11-29-12r-japan-cup.${ext}`);
   }
 });
+
+test("past races are edited one tab at a time as a labelled form", async ({ context }) => {
+  const { dock, overlay } = await open(context);
+  await dock.getByRole("tab", { name: "ม้า" }).click();
+  const ed = dock.getByTestId("runner-editor").first();
+  await ed.locator("summary").click();
+  await ed.getByRole("tab", { name: "ครั้งก่อน", exact: true }).click();
+  await ed.getByLabel("ชื่อรายการ").fill("Tenno Sho (Spring) X");
+  await expect(overlay.locator("[data-no='1']").getByTestId("past").nth(1)).toContainText("TENNO SHO (SPRING) X");
+  // removing the last race leaves an empty tab with an add button
+  await ed.getByRole("tab", { name: "2 ครั้งก่อน", exact: true }).click();
+  await ed.getByRole("button", { name: /^ลบเบอร์ 1/ }).click();
+  await expect(ed.getByRole("tab", { name: "2 ครั้งก่อน +" })).toBeVisible();
+  await ed.getByRole("tab", { name: "2 ครั้งก่อน +" }).click();
+  await ed.getByRole("button", { name: "+ เพิ่มผลงาน 2 ครั้งก่อน" }).click();
+  await expect(ed.getByLabel("วันที่")).toBeVisible();
+});
