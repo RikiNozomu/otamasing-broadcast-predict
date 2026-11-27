@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { exportBoard, fileStem, parseBoard } from "../../src/lib/model";
 import { SAMPLE, sampleData } from "../../src/lib/sample";
 import { finishBg, ordinal, ratingColor, ratingValue } from "../../src/lib/labels";
-import { scrollY } from "../../src/overlay/Overlay";
+import { maxScroll, VIEW_H } from "../../src/overlay/Overlay";
+import { boardHeight } from "../../src/board/Board";
 
 describe("board file", () => {
   it("round-trips the sample through export and import", () => {
@@ -44,7 +45,9 @@ describe("labels", () => {
     expect([123, 115, 105, 65].map(ratingColor)).toEqual(["#E2A40E", "#4F9BD9", "#D9895A", "#8E8E8E"]);
     expect([1, 2, 3, 9, null].map(finishBg)).toEqual(["#FDE7AE", "#D4E6F8", "#FCE1D1", "#FFFFFF", "#FFFFFF"]);
   });
-  it("scroll 0 is the top, then one row at a time under the header", () => {
-    expect([0, 1, 2].map(scrollY)).toEqual([0, 240, 334]);
+  it("scrolls freely until the board's bottom reaches the bottom of a 16:9 screen", () => {
+    expect(VIEW_H).toBe(798);
+    expect(maxScroll(18)).toBe(boardHeight(18) - 798);
+    expect(maxScroll(1)).toBe(0);
   });
 });

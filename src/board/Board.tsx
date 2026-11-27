@@ -10,7 +10,7 @@ import { FitText } from "@otamasing/broadcast-shared/components/FitText";
 import { Logo } from "@otamasing/broadcast-shared/components/Logo";
 import { Silks } from "@otamasing/broadcast-shared/components/Silks";
 import { cx } from "@otamasing/broadcast-shared/lib/cx";
-import { FORM_RACES, type Board as BoardData, type PastRace, type Runner } from "../lib/model";
+import { FORM_RACES, photoTransform, type Board as BoardData, type PastRace, type Runner } from "../lib/model";
 import { courseLine, dotDate, finishBg, GRADE_PILL, ordinal, raceInfo, ratingColor, ratingValue, RUN_STYLE_COLOR } from "../lib/labels";
 
 export const BOARD_W = 1418;
@@ -44,7 +44,7 @@ const BoardFlag = ({ code, className }: { code: string; className?: string }) =>
 /** The BK / PP cell: the whole cell takes the box colour; plain = black number on white. */
 function NumberCell({ value, colors }: { value: number; colors: Pair | null }) {
   const [bg, fg] = colors ?? ["#FFFFFF", "#000000"];
-  return <div className="flex items-center justify-center text-[34px] font-extrabold" style={{ background: bg, color: fg, borderRight: `1px solid ${LINE}` }}>{value}</div>;
+  return <div className="flex items-center justify-center text-[34px] font-bold" style={{ fontFamily: '"IBM Plex Mono", monospace', background: bg, color: fg, borderRight: `1px solid ${LINE}` }}>{value}</div>;
 }
 
 /** Four stacked boxes in the style's colour, with a triangle in the horse's running style. */
@@ -64,20 +64,20 @@ function RunStyle({ style }: { style: number }) {
 function HorseCell({ h }: { h: Runner }) {
   return (
     <div className="relative grid min-w-0 grid-cols-[minmax(0,1fr)] content-center gap-[1px] overflow-hidden px-2 leading-none" style={{ borderRight: `1px solid ${LINE}` }}>
-      <div className="flex items-center gap-1.5 text-[15px]" style={{ color: GREY }}>
+      <div className="flex items-center gap-1.5 text-[15.5px]" style={{ color: GREY }}>
         <FitText>{h.sire.toUpperCase()}</FitText>
         <Rating text={h.rating} className="h-[15px] text-[13px]" />
         <span className="flex-none">{h.profile}</span>
       </div>
       <div className="flex items-center gap-1.5 pr-6">
         <BoardFlag code={h.country} className="h-[15px] w-[22px]" />
-        <FitText className="text-[31px] leading-[1.05] font-bold" strike={h.scratched}><span data-testid="horse" style={{ color: INK }}>{h.name.toUpperCase()}</span></FitText>
+        <FitText className="text-[32px] leading-[1.05] font-bold" strike={h.scratched}><span data-testid="horse" style={{ color: INK }}>{h.name.toUpperCase()}</span></FitText>
       </div>
-      <div className="flex items-center gap-1.5 pr-6 text-[18px]" style={{ color: "#3A3A3A" }}>
+      <div className="flex items-center gap-1.5 pr-6 text-[20px]" style={{ color: "#3A3A3A" }}>
         <BoardFlag code={h.center} className="h-[16px] w-[24px]" />
         <FitText>{h.trainer.toUpperCase()}</FitText>
       </div>
-      <div className="text-[14px]" style={{ color: GREY }}>
+      <div className="text-[16px]" style={{ color: GREY }}>
         <FitText>{h.dam.toUpperCase()}{h.bms && <> <span className="lowercase">by</span> {h.bms.toUpperCase()}</>}</FitText>
       </div>
       <span className="absolute top-[24px] right-2 grid justify-items-center gap-1">
@@ -92,8 +92,8 @@ function JockeyCell({ h }: { h: Runner }) {
   return (
     <div className="grid min-w-0 content-center justify-items-center gap-[2px] px-1 leading-none" style={{ borderRight: `1px solid ${LINE}` }}>
       {h.silks ? <Silks name={h.silks} className="h-[40px] w-[48px]" /> : <span className="h-[40px]" />}
-      <span className="flex w-full justify-center text-[14px] font-bold" style={{ color: INK }}><FitText grow={false}>{h.jockey.toUpperCase()}</FitText></span>
-      <span className="flex items-center gap-1 text-[15px]" style={{ color: "#3A3A3A" }}>
+      <span className="flex w-full justify-center text-[16px] font-bold" style={{ color: INK }}><FitText grow={false}>{h.jockey.toUpperCase()}</FitText></span>
+      <span className="flex items-center gap-1 text-[17px]" style={{ color: "#3A3A3A" }}>
         <BoardFlag code={h.jockeyCountry} className="h-[13px] w-[20px]" />
         {h.weight != null && <span>{h.weight.toFixed(1)} kg</span>}
       </span>
@@ -106,25 +106,25 @@ function PastCell({ r, last }: { r?: PastRace; last: boolean }) {
   if (!r) return <div style={border} />;
   const won = r.finish === 1;
   return (
-    <div data-testid="past" className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] content-center gap-x-1 gap-y-[2px] px-2 leading-none" style={{ ...border, background: finishBg(r.finish) }}>
-      <span className="flex items-center gap-1.5 text-[14px]" style={{ color: GREY }}>
+    <div data-testid="past" className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] content-center gap-x-1 gap-y-[4px] px-2 leading-none" style={{ ...border, background: finishBg(r.finish) }}>
+      <span className="flex items-center gap-1.5 text-[16px]" style={{ color: GREY }}>
         {dotDate(r.date)} {r.round}
         {r.grade && <Pill color={GRADE_PILL[r.grade].color} className="h-[15px] text-[12px]">{GRADE_PILL[r.grade].label}</Pill>}
       </span>
       <span className="row-span-2 self-end text-right whitespace-nowrap" style={{ color: "#333" }}>
-        {r.finish != null && <><span className="text-[31px] font-bold">{ordinal(r.finish)}</span>{r.field != null && <span className="text-[14px]"> of {r.field}</span>}</>}
+        {r.finish != null && <><span className="text-[31px] font-bold">{ordinal(r.finish)}</span>{r.field != null && <span className="text-[15px]"> of {r.field}</span>}</>}
       </span>
-      <span className="flex min-w-0 text-[22px] font-bold" style={{ color: INK }}><FitText>{r.name.toUpperCase()}</FitText></span>
-      <span className="flex min-w-0 text-[13px]" style={{ color: GREY }}><FitText>{courseLine(r)}</FitText></span>
-      <span className="flex items-center justify-end gap-1 text-[14px]" style={{ color: "#3A3A3A" }}>
+      <span className="flex min-w-0 text-[24px] font-bold" style={{ color: INK }}><FitText>{r.name.toUpperCase()}</FitText></span>
+      <span className="flex min-w-0 text-[16px]" style={{ color: GREY }}><FitText>{courseLine(r)}</FitText></span>
+      <span className="flex items-center justify-end gap-1 text-[17px]" style={{ color: "#3A3A3A" }}>
         {r.rating != null && <span className="rounded-[2px] px-1 text-[12px] leading-[13px] font-semibold text-white" style={{ background: ratingColor(r.rating) }}>{r.rating}</span>}
         {r.time}
       </span>
-      <span className="flex min-w-0 items-center gap-1 text-[14px]" style={{ color: GREY }}>
+      <span className="flex min-w-0 items-center gap-1 text-[16px]" style={{ color: GREY }}>
         <BoardFlag code={r.jockeyCountry} className="h-[11px] w-[17px]" />
         <FitText>{r.jockey.toUpperCase()}{r.weight != null && <>&nbsp; {r.weight.toFixed(1)}</>}</FitText>
       </span>
-      <span className="max-w-[110px] text-right text-[13px] whitespace-nowrap" style={{ color: GREY }}>
+      <span className="max-w-[110px] text-right text-[16px] whitespace-nowrap" style={{ color: GREY }}>
         <FitText grow={false}>{r.other ? (won ? `(${r.other.toUpperCase()})` : r.other.toUpperCase()) : ""}</FitText>
       </span>
     </div>
@@ -138,7 +138,7 @@ export function useColumns(b: BoardData) {
 
 /** The table header (BK PP HORSE JOCKEY, the pundits' names written sideways, RECENT PERFORMANCES). */
 export function TableHead({ b }: { b: BoardData }) {
-  const cell = "flex items-center justify-center text-[24px] font-bold tracking-[.02em]";
+  const cell = "flex items-center justify-center text-[24px] font-bold";
   const sep = { borderRight: "1px solid rgb(255 255 255 / .35)" };
   return (
     <div data-testid="table-head" className="grid overflow-hidden rounded-t-[22px] bg-[#00157D] text-white" style={{ gridTemplateColumns: useColumns(b), height: HEAD_H }}>
@@ -167,8 +167,8 @@ function Row({ b, h }: { b: BoardData; h: Runner }) {
       <HorseCell h={h} />
       <JockeyCell h={h} />
       {b.pundits.map((p, i) => (
-        <div key={i} data-testid="pick" className="flex items-center justify-center text-[24px] font-bold" style={{ color: INK, borderRight: `1px solid ${LINE}` }}>
-          {p.picks[String(h.number)] ?? <span className="tracking-[.12em]">--</span>}
+        <div key={i} data-testid="pick" data-mark={p.picks[String(h.number)] ?? ""} className="flex items-center justify-center" style={{ color: INK, borderRight: `1px solid ${LINE}` }}>
+          <Mark m={p.picks[String(h.number)]} />
         </div>
       ))}
       {Array.from({ length: FORM_RACES }, (_, i) => <PastCell key={i} r={h.form[i]} last={i === FORM_RACES - 1} />)}
@@ -184,16 +184,19 @@ function Title({ b }: { b: BoardData }) {
       <div className="grid justify-items-end leading-none">
         <span className="flex items-center gap-2">
           {r.grade && <Pill color={GRADE_PILL[r.grade].color} className="h-[19px] px-3 text-[14px]">{GRADE_PILL[r.grade].label}</Pill>}
-          {r.jpName && <span data-testid="jp-name" className="text-[25px] text-black" style={{ fontFamily: '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif' }}>{r.jpName}</span>}
+          {r.jpName && <span data-testid="jp-name" className="text-[25px] text-black" style={{ fontFamily: '"Noto Serif JP Variable", serif' }}>{r.jpName}</span>}
         </span>
-        <span data-testid="race-name" className="mt-1 text-[78px] leading-[.95] font-bold text-black [text-shadow:0_4px_8px_rgb(0_0_0/.25)]">{r.name.toUpperCase()}</span>
-        <span className="mt-2 text-[25px] text-black">
+        <span data-testid="race-name" className="mt-1 text-[95px] leading-[.95] font-bold text-black [text-shadow:0_4px_8px_rgb(0_0_0/.25)]">{r.name.toUpperCase()}</span>
+        <span className="mt-2 text-[28px] text-black">
           {raceInfo(r)}{r.postTime && <> <b>POST TIME</b> {r.postTime} {r.timeZone}</>}
         </span>
       </div>
       {r.round && (
-        <span data-testid="round" className="flex h-[102px] min-w-[122px] items-center justify-center rounded-[10px] bg-[#00157D] px-3 text-[58px] font-bold text-white">
-          {r.round.replace(/R$/i, "")}<span className="text-[42px]">{/R$/i.test(r.round) ? "R" : ""}</span>
+        <span data-testid="round" className="flex h-[102px] min-w-[122px] items-center justify-center rounded-[10px] bg-[#00157D] px-3 leading-none font-bold text-white">
+          <span className="flex items-baseline">
+            <span className="text-[59px]">{r.round.replace(/R$/i, "")}</span>
+            {/R$/i.test(r.round) && <span className="text-[48px]">R</span>}
+          </span>
         </span>
       )}
     </div>
@@ -206,11 +209,11 @@ function Title({ b }: { b: BoardData }) {
  */
 export function Board({ b, sticky = false }: { b: BoardData; sticky?: boolean }) {
   return (
-    <div data-testid="board" className="relative bg-white font-display" style={{ width: BOARD_W, minHeight: boardHeight(b.runners.length) }}>
+    <div data-testid="board" className="relative bg-white" style={{ fontFamily: '"Alumni Sans Variable", var(--font-display)', width: BOARD_W, minHeight: boardHeight(b.runners.length) }}>
       <div className="absolute inset-x-0 top-0 h-[420px] overflow-hidden">
         {b.photo && (
           <div className="absolute top-0 left-0 h-[420px] w-[1100px]">
-            <img data-testid="photo" src={b.photo} alt="" className="size-full object-cover" />
+            <img data-testid="photo" src={b.photo} alt="" className="size-full object-cover" style={{ transform: photoTransform(b.photoPos) }} />
             {/* fades drawn as white gradients (the JPG / PDF export can't draw CSS masks) */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,transparent_35%,#fff_92%)]" />
           </div>
@@ -226,5 +229,23 @@ export function Board({ b, sticky = false }: { b: BoardData; sticky?: boolean })
         </div>
       </div>
     </div>
+  );
+}
+
+/** Marks drawn as SVG so each sits dead centre at one size (font glyphs differ in size and baseline). */
+function Mark({ m }: { m?: string }) {
+  const line = { fill: "none", stroke: "currentColor", strokeWidth: 2.4 };
+  const shape: Record<string, JSX.Element> = {
+    "◎": <><circle cx="16" cy="16" r="13" {...line} /><circle cx="16" cy="16" r="7.5" {...line} /></>,
+    "○": <circle cx="16" cy="16" r="13" {...line} />,
+    "▲": <path d="M16 3 L30 28 H2 Z" fill="currentColor" />,
+    "△": <path d="M16 4.5 L28.5 27 H3.5 Z" {...line} strokeLinejoin="round" />,
+    "☆": <path d="M16 2.5 L19.5 12 L29.5 12.3 L21.6 18.5 L24.4 28.2 L16 22.5 L7.6 28.2 L10.4 18.5 L2.5 12.3 L12.5 12 Z" {...line} strokeLinejoin="round" />,
+    "×": <path d="M5 5 L27 27 M27 5 L5 27" {...line} strokeWidth={3} strokeLinecap="round" />,
+  };
+  return (
+    <svg width="32" height="32" viewBox="0 0 32 32" aria-label={m || "-"}>
+      {(m && shape[m]) || <path d="M4 16 H13 M19 16 H28" {...line} strokeWidth={3} />}
+    </svg>
   );
 }

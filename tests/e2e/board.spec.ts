@@ -18,7 +18,7 @@ test("first open seeds the sample board with its pundits", async ({ context }) =
   await expect(overlay.getByTestId("race-name")).toHaveText("JAPAN CUP");
   await expect(overlay.getByTestId("row")).toHaveCount(4);
   await expect(overlay.getByTestId("pundit-head")).toHaveCount(2);
-  await expect(overlay.locator("[data-no='3'] [data-testid=pick]").first()).toHaveText("◎");
+  await expect(overlay.locator("[data-no='3'] [data-testid=pick]").first()).toHaveAttribute("data-mark", "◎");
   await expect(overlay.locator("[data-no='1'] [data-silks]")).toHaveAttribute("data-silks", "Carrot");
 });
 
@@ -33,29 +33,32 @@ test("pundits: add up to 4, remove down to 1, picks reach the overlay", async ({
   await dock.getByLabel("ชื่อผู้ทายผลคนที่ 4").fill("กุ้ง");
   await expect(overlay.getByTestId("pundit-head").nth(3)).toHaveText("กุ้ง");
   await dock.getByLabel("กุ้ง เบอร์ 2").selectOption("☆");
-  await expect(overlay.locator("[data-no='2'] [data-testid=pick]").nth(3)).toHaveText("☆");
+  await expect(overlay.locator("[data-no='2'] [data-testid=pick]").nth(3)).toHaveAttribute("data-mark", "☆");
   for (let i = 4; i > 1; i--) await dock.getByRole("button", { name: `ลบผู้ทายผลคนที่ ${i}` }).click();
   await expect(dock.getByRole("button", { name: "ลบผู้ทายผลคนที่ 1" })).toBeDisabled();
   await expect(overlay.getByTestId("pundit-head")).toHaveCount(1);
 });
 
-test("the dock scrolls the overlay and the table header stays on top", async ({ context }) => {
+test("the dock scrolls the overlay freely and the table header stays on top", async ({ context }) => {
   const { dock, overlay } = await open(context);
   // a long field so there is something to scroll
   await dock.getByRole("tab", { name: "ม้า" }).click();
   for (let i = 0; i < 10; i++) await dock.getByRole("button", { name: "+ เพิ่มม้า" }).click();
   await expect(overlay.getByTestId("row")).toHaveCount(14);
   await dock.getByRole("tab", { name: "ภาพรวม" }).click();
-  await dock.getByRole("button", { name: "▼ ลง" }).click();
-  await dock.getByRole("button", { name: "▼ ลง" }).click();
-  await expect(dock.getByTestId("scroll-at")).toHaveText("แถวบนสุด: เบอร์ 2 Cosmo Kuranda");
-  await expect.poll(() => board(overlay).evaluate((e) => e.scrollTop)).toBeGreaterThan(400);
+  const top = () => board(overlay).evaluate((e) => e.scrollTop);
+  // any position, not snapped to a row: 437 board px = 437 * 1920 / 1418 screen px
+  await dock.getByLabel("ตำแหน่งตาราง").fill("437");
+  await expect.poll(top).toBeCloseTo((437 * 1920) / 1418, 0);
   const head = await overlay.getByTestId("table-head").boundingBox();
   expect(head!.y).toBeLessThan(2);
-  const row2 = await overlay.locator("[data-testid=row][data-no='2']").boundingBox();
-  expect(Math.abs(row2!.y - head!.height)).toBeLessThan(4);
+  // the mouse wheel over the dock preview scrolls too
+  const preview = dock.getByTestId("scroll-preview");
+  await preview.hover();
+  await dock.mouse.wheel(0, 50);
+  await expect.poll(async () => (await dock.getByLabel("ตำแหน่งตาราง").inputValue()) !== "437").toBe(true);
   await dock.getByRole("button", { name: "บนสุด" }).click();
-  await expect.poll(() => board(overlay).evaluate((e) => e.scrollTop)).toBe(0);
+  await expect.poll(top).toBe(0);
 });
 
 test("number styles follow the dock like compact and intro", async ({ context }) => {
@@ -93,6 +96,15 @@ test("the top-left picture and the JPG / PDF export", async ({ context }) => {
   const png = await dock.evaluate(() => { const c = document.createElement("canvas"); c.width = 40; c.height = 30; c.getContext("2d")!.fillRect(0, 0, 40, 30); return c.toDataURL("image/png"); });
   await dock.getByTestId("photo-file").setInputFiles({ name: "p.png", mimeType: "image/png", buffer: Buffer.from(png.split(",")[1], "base64") });
   await expect(overlay.getByTestId("photo")).toHaveAttribute("src", /^data:image\/jpeg/);
+  await dock.getByRole("slider", { name: "ซูม" }).fill("2");
+  await dock.getByRole("slider", { name: "หมุน" }).fill("15");
+  await dock.getByRole("slider", { name: "แนวนอน" }).fill("40");
+  await expect(overlay.getByTestId("photo")).toHaveAttribute("style", /translate\(40px, 0px\) rotate\(15deg\) scale\(2\)/);
+  const f = (await dock.getByTestId("photo-frame").boundingBox())!;
+  await dock.mouse.move(f.x + 50, f.y + 30); await dock.mouse.down(); await dock.mouse.move(f.x + 50, f.y + 60); await dock.mouse.up();
+  await expect(dock.getByRole("slider", { name: "แนวตั้ง" })).not.toHaveValue("0");
+  await dock.getByRole("button", { name: "รีเซ็ตตำแหน่งรูป" }).click();
+  await expect(overlay.getByTestId("photo")).toHaveAttribute("style", /rotate\(0deg\) scale\(1\)/);
   await dock.getByRole("tab", { name: "ภาพรวม" }).click();
   // no save dialog in the test browser: the file downloads
   await dock.evaluate(() => { (window as unknown as { showSaveFilePicker?: unknown }).showSaveFilePicker = undefined; });

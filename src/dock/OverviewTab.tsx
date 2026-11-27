@@ -1,40 +1,63 @@
 /** ภาพรวม: scroll the overlay, import / export the board's JSON (one race per file), save it as JPG or PDF. */
 import { AnimatePresence } from "motion/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, buttonClass } from "@otamasing/broadcast-shared/components/Button";
 import { Section, hintClass } from "@otamasing/broadcast-shared/components/Section";
 import { copyText, inObs, saveFile, saveJson } from "@otamasing/broadcast-shared/lib/download";
 import { cx } from "@otamasing/broadcast-shared/lib/cx";
 import { exportBoard, fileStem, parseBoard, type Board as BoardData } from "../lib/model";
-import { setData, update, useData } from "../lib/store";
+import { getData, setData, update, useData } from "../lib/store";
 import { boardJpeg, dataUrlBlob, jpegPdf } from "../lib/exportImage";
-import { Board, BOARD_W, boardHeight } from "../board/Board";
-import { ScrolledBoard } from "../overlay/Overlay";
+import { Board, BOARD_W, boardHeight, ROW_H } from "../board/Board";
+import { maxScroll, ScrolledBoard } from "../overlay/Overlay";
 import { inputClass } from "./Field";
 import type { Toast } from "./Dock";
 
 export function OverviewTab({ toast }: { toast: Toast }) {
-  const d = useData();
-  const n = d.runners.length;
-  const setScroll = (s: number) => update((x) => ({ ...x, scroll: Math.max(0, Math.min(n, s)) }));
-  const at = d.scroll > 0 ? d.runners[d.scroll - 1] : null;
   return (
     <>
-      <Section title="เลื่อนตาราง">
-        <div className="relative aspect-video w-full overflow-hidden border border-line"><ScrolledBoard /></div>
-        <span data-testid="scroll-at" className="text-[13px]">{at ? `แถวบนสุด: เบอร์ ${at.number} ${at.name}` : "บนสุด (เห็นชื่อรายการ)"}</span>
-        <input type="range" aria-label="ตำแหน่งตาราง" min={0} max={n} step={1} value={Math.min(d.scroll, n)} onChange={(e) => setScroll(+e.target.value)} />
-        <div className="grid grid-cols-4 gap-1.5">
-          <Button onClick={() => setScroll(0)}>บนสุด</Button>
-          <Button onClick={() => setScroll(d.scroll - 1)} disabled={d.scroll <= 0}>▲ ขึ้น</Button>
-          <Button variant="primary" onClick={() => setScroll(d.scroll + 1)} disabled={d.scroll >= n}>▼ ลง</Button>
-          <Button onClick={() => setScroll(n)}>ล่างสุด</Button>
-        </div>
-        <span className={hintClass}>หัวตารางค้างอยู่ด้านบนเมื่อเลื่อนลง ถ้าตารางสั้นกว่าจอจะเลื่อนได้แค่ถึงแถวสุดท้าย</span>
-      </Section>
+      <ScrollSection />
       <FileSection toast={toast} />
       <PictureSection toast={toast} />
     </>
+  );
+}
+
+/** Free scrolling: slider, wheel or drag on the preview, and quick jumps. Positions are board px. */
+function ScrollSection() {
+  const d = useData();
+  const max = maxScroll(d.runners.length);
+  const setScroll = (s: number) => update((x) => ({ ...x, scroll: Math.round(Math.max(0, Math.min(max, s))) }));
+  const preview = useRef<HTMLDivElement>(null);
+  // preview px → board px
+  const k = () => BOARD_W / (preview.current?.clientWidth || BOARD_W);
+  const drag = useRef<{ y: number; s: number } | null>(null);
+  useEffect(() => {
+    const el = preview.current;
+    if (!el) return;
+    // a non-passive listener, so the dock page itself doesn't scroll
+    const wheel = (e: WheelEvent) => { e.preventDefault(); setScroll(getData().scroll + e.deltaY * k()); };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  });
+  const at = Math.min(d.scroll, max);
+  return (
+    <Section title="เลื่อนตาราง">
+      <div ref={preview} data-testid="scroll-preview" className="relative aspect-video w-full cursor-grab touch-none overflow-hidden border border-line active:cursor-grabbing"
+        onPointerDown={(e) => { drag.current = { y: e.clientY, s: getData().scroll }; e.currentTarget.setPointerCapture(e.pointerId); }}
+        onPointerMove={(e) => { if (drag.current) setScroll(drag.current.s - (e.clientY - drag.current.y) * k()); }}
+        onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}>
+        <ScrolledBoard />
+      </div>
+      <input type="range" aria-label="ตำแหน่งตาราง" min={0} max={max} step={1} value={at} onChange={(e) => setScroll(+e.target.value)} />
+      <div className="grid grid-cols-4 gap-1.5">
+        <Button onClick={() => setScroll(0)}>บนสุด</Button>
+        <Button onClick={() => setScroll(at - ROW_H)} disabled={at <= 0}>▲ ขึ้น</Button>
+        <Button variant="primary" onClick={() => setScroll(at + ROW_H)} disabled={at >= max}>▼ ลง</Button>
+        <Button onClick={() => setScroll(max)}>ล่างสุด</Button>
+      </div>
+      <span data-testid="scroll-at" className={hintClass}>{max ? `${Math.round((at / max) * 100)}%` : "ตารางสั้นพอดีจอ ไม่ต้องเลื่อน"} · ลากหรือหมุนล้อเมาส์บนภาพด้านบน หรือใช้แถบเลื่อน เลื่อนได้อิสระไม่ล็อกตามแถว (ปุ่มขึ้น/ลงเลื่อนทีละประมาณ 1 แถว) หัวตารางค้างด้านบนเสมอ</span>
+    </Section>
   );
 }
 
