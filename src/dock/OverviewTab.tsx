@@ -3,6 +3,7 @@ import { AnimatePresence } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { Button, buttonClass } from "@otamasing/broadcast-shared/components/Button";
 import { Section, hintClass } from "@otamasing/broadcast-shared/components/Section";
+import { Switch } from "@otamasing/broadcast-shared/components/Switch";
 import { copyText, inObs, saveFile, saveJson } from "@otamasing/broadcast-shared/lib/download";
 import { cx } from "@otamasing/broadcast-shared/lib/cx";
 import { exportBoard, fileStem, parseBoard, type Board as BoardData } from "../lib/model";
@@ -49,12 +50,13 @@ function ScrollSection() {
         onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}>
         <ScrolledBoard />
       </div>
-      <input type="range" aria-label="ตำแหน่งตาราง" min={0} max={max} step={1} value={at} onChange={(e) => setScroll(+e.target.value)} />
+      <Switch on={d.fit} label="ย่อให้เห็นทั้งตาราง (ตามความสูงจอ)" onToggle={() => update((x) => ({ ...x, fit: !x.fit }))} />
+      <input type="range" aria-label="ตำแหน่งตาราง" min={0} max={max} step={1} value={at} disabled={d.fit} onChange={(e) => setScroll(+e.target.value)} />
       <div className="grid grid-cols-4 gap-1.5">
-        <Button onClick={() => setScroll(0)}>บนสุด</Button>
-        <Button onClick={() => setScroll(at - ROW_H)} disabled={at <= 0}>▲ ขึ้น</Button>
-        <Button variant="primary" onClick={() => setScroll(at + ROW_H)} disabled={at >= max}>▼ ลง</Button>
-        <Button onClick={() => setScroll(max)}>ล่างสุด</Button>
+        <Button onClick={() => setScroll(0)} disabled={d.fit}>บนสุด</Button>
+        <Button onClick={() => setScroll(at - ROW_H)} disabled={d.fit || at <= 0}>▲ ขึ้น</Button>
+        <Button variant="primary" onClick={() => setScroll(at + ROW_H)} disabled={d.fit || at >= max}>▼ ลง</Button>
+        <Button onClick={() => setScroll(max)} disabled={d.fit}>ล่างสุด</Button>
       </div>
       <span data-testid="scroll-at" className={hintClass}>{max ? `${Math.round((at / max) * 100)}%` : "ตารางสั้นพอดีจอ ไม่ต้องเลื่อน"} · ลากหรือหมุนล้อเมาส์บนภาพด้านบน หรือใช้แถบเลื่อน เลื่อนได้อิสระไม่ล็อกตามแถว (ปุ่มขึ้น/ลงเลื่อนทีละประมาณ 1 แถว) หัวตารางค้างด้านบนเสมอ</span>
     </Section>
@@ -75,7 +77,7 @@ function FileSection({ toast }: { toast: Toast }) {
   };
   const apply = () => {
     if (!pending) return;
-    const ok = setData({ ...pending, scroll: 0 });
+    const ok = setData({ ...pending, scroll: 0, fit: getData().fit });
     toast(ok ? `นำเข้า ${pending.race.round} ${pending.race.name} แล้ว` : "บันทึกในเบราว์เซอร์ไม่ได้ (รูปอาจใหญ่เกินไป) ข้อมูลจะหายเมื่อปิดหน้านี้", !ok);
     setPending(null);
   };

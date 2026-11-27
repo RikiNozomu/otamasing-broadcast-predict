@@ -207,22 +207,29 @@ function Title({ b }: { b: BoardData }) {
   );
 }
 
+/** The race picture at the top with its white fades (board px; the overlay also keeps a frozen strip of it behind the floating header). */
+export function Backdrop({ b, testId, top = 0 }: { b: BoardData; testId?: string; top?: number }) {
+  return (
+    <div className="absolute inset-x-0 h-[420px] overflow-hidden" style={{ top }}>
+      {b.photo && (
+        <div className="absolute top-0 left-0 h-[420px] w-[1100px] overflow-hidden">
+          <img data-testid={testId} src={b.photo} alt="" className="size-full object-cover" style={{ transform: photoTransform(b.photoPos) }} />
+          {/* fades drawn as white gradients (the JPG / PDF export can't draw CSS masks) */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,transparent_35%,#fff_92%)]" />
+        </div>
+      )}
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_45%,#fff_100%)]" />
+    </div>
+  );
+}
+
 /**
  * The whole board. The overlay keeps a copy of the table header on top while it scrolls (see Overlay).
  */
 export function Board({ b }: { b: BoardData }) {
   return (
     <div data-testid="board" className="relative bg-white" style={{ fontFamily: BOARD_FONT, width: BOARD_W, minHeight: boardHeight(b.runners.length) }}>
-      <div className="absolute inset-x-0 top-0 h-[420px] overflow-hidden">
-        {b.photo && (
-          <div className="absolute top-0 left-0 h-[420px] w-[1100px] overflow-hidden">
-            <img data-testid="photo" src={b.photo} alt="" className="size-full object-cover" style={{ transform: photoTransform(b.photoPos) }} />
-            {/* fades drawn as white gradients (the JPG / PDF export can't draw CSS masks) */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,transparent_35%,#fff_92%)]" />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_45%,#fff_100%)]" />
-      </div>
+      <Backdrop b={b} testId="photo" />
       <Logo className="absolute top-[15px] left-[20px] w-[145px] drop-shadow-[0_1px_3px_rgb(0_0_0/.5)]" />
       <Title b={b} />
       <div className="absolute" style={{ left: TABLE_X, top: HEAD_Y, width: TABLE_W, bottom: BOTTOM }}>

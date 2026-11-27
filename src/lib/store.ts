@@ -30,7 +30,7 @@ export function getData(): AppData {
   try {
     const j = r ? JSON.parse(r) : null;
     const res = BoardSchema.safeParse(j);
-    if (res.success) d = { ...res.data, scroll: typeof j.scroll === "number" ? j.scroll : 0 };
+    if (res.success) d = { ...res.data, scroll: typeof j.scroll === "number" ? j.scroll : 0, fit: j.fit === true };
   } catch { d = null; }
   if (!d) {
     d = sampleData();

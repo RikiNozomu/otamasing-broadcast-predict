@@ -1,11 +1,12 @@
 /**
  * The OBS Browser Source: the board scaled to the page width, scrolled to the dock's position
  * (smoothly). Once the title has scrolled away the table header floats HEAD_GAP below the top,
- * and the band above and beside it is see-through (nothing is drawn there).
+ * on a frozen strip of the race picture.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { cx } from "@otamasing/broadcast-shared/lib/cx";
 import { useData } from "../lib/store";
-import { Board, BOARD_FONT, BOARD_W, boardHeight, HEAD_H, HEAD_Y, TABLE_W, TABLE_X, TableHead } from "../board/Board";
+import { Backdrop, Board, BOARD_FONT, BOARD_W, boardHeight, HEAD_H, HEAD_Y, TABLE_W, TABLE_X, TableHead } from "../board/Board";
 
 /** Height of the board seen on a 16:9 screen (the board is 1418 px wide). */
 export const VIEW_H = Math.round((BOARD_W * 9) / 16);
@@ -22,32 +23,34 @@ export function ScrolledBoard() {
   const d = useData();
   const box = useRef<HTMLDivElement>(null);
   const head = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState(1);
+  const [size, setSize] = useState({ w: BOARD_W, h: VIEW_H });
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
-    const fit = () => setZoom(el.clientWidth / BOARD_W);
+    const fit = () => setSize({ w: el.clientWidth, h: el.clientHeight });
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  // normally the board fills the width and scrolls; "fit" shrinks it to the height so the whole board shows, centred
+  const zoom = d.fit ? Math.min(size.w / BOARD_W, size.h / boardHeight(d.runners.length)) : size.w / BOARD_W;
   const target = useRef(0);
-  target.current = d.scroll * zoom;
+  target.current = d.fit ? 0 : d.scroll * zoom;
+  const fitRef = useRef(d.fit);
+  fitRef.current = d.fit;
   useEffect(() => {
     let raf = 0;
     const step = () => {
       const el = box.current;
       if (el) {
-        // the box's own offset from the top (see below) is not part of the scroll position
-        const off = parseFloat(el.style.top) || 0, cur = el.scrollTop - off, diff = target.current - cur;
+        if (fitRef.current) el.scrollTop = 0;
+        const cur = el.scrollTop, diff = target.current - cur;
         // ease 18% of the way each frame (at least 1 px, since scrollTop rounds), then land exactly
-        const pos = Math.abs(diff) > 1 ? cur + Math.sign(diff) * Math.max(1, Math.abs(diff) * 0.18) : target.current;
-        // past the point where the board's own header reaches HEAD_GAP: show the floating copy and move the board's box
-        // down to just under it, so nothing at all is drawn above (a clip-path there came out black in OBS)
-        const z = el.clientWidth / BOARD_W, stuck = pos / z > HEAD_Y - HEAD_GAP, top = stuck ? (HEAD_GAP + HEAD_H) * z : 0;
-        el.style.top = `${top}px`;
-        el.scrollTop = pos + top;
+        if (Math.abs(diff) > 1) el.scrollTop = cur + Math.sign(diff) * Math.max(1, Math.abs(diff) * 0.18);
+        else if (diff !== 0) el.scrollTop = target.current;
+        // past the point where the board's own header reaches HEAD_GAP: show the floating band
+        const stuck = el.scrollTop / (el.clientWidth / BOARD_W) > HEAD_Y - HEAD_GAP;
         if (head.current) head.current.style.visibility = stuck ? "visible" : "hidden";
       }
       raf = requestAnimationFrame(step);
@@ -57,11 +60,15 @@ export function ScrolledBoard() {
   }, []);
   return (
     <>
-      <div ref={box} data-testid="scroller" className="absolute inset-0 overflow-hidden bg-white">
-        <div style={{ zoom }}><Board b={d} /></div>
+      <div ref={box} data-testid="scroller" className={cx("absolute inset-0 overflow-hidden", !d.fit && "bg-white")}>
+        <div className="mx-auto w-fit" style={{ zoom }}><Board b={d} /></div>
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0" style={{ zoom }}>
-        <div ref={head} data-testid="floating-head" className="invisible absolute" style={{ fontFamily: BOARD_FONT, top: HEAD_GAP, left: TABLE_X, width: TABLE_W }}><TableHead b={d} /></div>
+        {/* the strip of the board around the header at the moment it sticks, frozen: the race picture stays behind it */}
+        <div ref={head} data-testid="floating-head" className="invisible absolute top-0 left-0 overflow-hidden bg-white" style={{ fontFamily: BOARD_FONT, width: BOARD_W, height: HEAD_GAP + HEAD_H }}>
+          <Backdrop b={d} top={HEAD_GAP - HEAD_Y} />
+          <div className="absolute" style={{ top: HEAD_GAP, left: TABLE_X, width: TABLE_W }}><TableHead b={d} /></div>
+        </div>
       </div>
     </>
   );
@@ -70,8 +77,7 @@ export function ScrolledBoard() {
 export function Overlay() {
   useEffect(() => {
     document.body.classList.add("overflow-hidden");
-    // OBS shows the scene through the band above the floating header. The app's dark colour-scheme
-    // paints an opaque dark canvas behind a transparent page, so switch it off here too.
+    // a transparent page for OBS; the app's dark colour-scheme would paint an opaque dark canvas behind it
     document.documentElement.style.colorScheme = "light";
     document.documentElement.style.background = document.body.style.background = "transparent";
     document.title = "โอตะม้าซิ่ง Broadcast Predict · Overlay";

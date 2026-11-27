@@ -32,4 +32,4 @@ export const SAMPLE: BoardInput = {
   ],
 };
 
-export const sampleData = (): AppData => ({ ...BoardSchema.parse(SAMPLE), scroll: 0 });
+export const sampleData = (): AppData => ({ ...BoardSchema.parse(SAMPLE), scroll: 0, fit: false });
