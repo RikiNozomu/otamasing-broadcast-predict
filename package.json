@@ -15,8 +15,7 @@
   "dependencies": {
     "@fontsource-variable/alumni-sans": "5.2.8",
     "@fontsource-variable/noto-serif-jp": "5.2.9",
-    "@fontsource/ibm-plex-mono": "5.2.7",
-    "@otamasing/broadcast-shared": "github:RikiNozomu/otamasing-broadcast-shared#c535e28bf957f39a28dff8a6e76108652923673f",
+    "@otamasing/broadcast-shared": "github:RikiNozomu/otamasing-broadcast-shared#ee3fabd8e3d4db3caf0ec92ae61c8acd88decd90",
     "flag-icons": "7.2.3",
     "html-to-image": "1.11.11",
     "jspdf": "2.5.2",

@@ -4,7 +4,7 @@
  * The JPG / PDF export draws the same board at full height.
  */
 import type { CSSProperties, ReactNode } from "react";
-import { boxColors, drawOf, type Pair } from "@otamasing/broadcast-shared/lib/colors";
+import { boxColors, drawOf, numberFont, type Pair } from "@otamasing/broadcast-shared/lib/colors";
 import { Flag } from "@otamasing/broadcast-shared/components/Flag";
 import { FitText } from "@otamasing/broadcast-shared/components/FitText";
 import { Logo } from "@otamasing/broadcast-shared/components/Logo";
@@ -19,6 +19,8 @@ export const TABLE_W = 1342;
 /** Top of the table header, its height, and each runner row's height. */
 export const HEAD_Y = 240;
 export const HEAD_H = 54;
+/** Figma's board font: Alumni Sans for Latin, Otamasing Display (Noto Sans Thai) for Thai. */
+export const BOARD_FONT = '"Alumni Sans Variable", var(--font-display)';
 export const ROW_H = 94;
 const BOTTOM = 38;
 export const boardHeight = (rows: number) => HEAD_Y + HEAD_H + rows * ROW_H + BOTTOM;
@@ -44,7 +46,7 @@ const BoardFlag = ({ code, className }: { code: string; className?: string }) =>
 /** The BK / PP cell: the whole cell takes the box colour; plain = black number on white. */
 function NumberCell({ value, colors }: { value: number; colors: Pair | null }) {
   const [bg, fg] = colors ?? ["#FFFFFF", "#000000"];
-  return <div className="flex items-center justify-center text-[34px] font-bold" style={{ fontFamily: '"IBM Plex Mono", monospace', background: bg, color: fg, borderRight: `1px solid ${LINE}` }}>{value}</div>;
+  return <div className="flex items-center justify-center text-[34px] font-bold" style={{ ...numberFont, background: bg, color: fg, borderRight: `1px solid ${LINE}` }}>{value}</div>;
 }
 
 /** Four stacked boxes in the style's colour, with a triangle in the horse's running style. */
@@ -204,12 +206,11 @@ function Title({ b }: { b: BoardData }) {
 }
 
 /**
- * The whole board. `sticky`: the table header sticks to the top of the scrolling box (the overlay);
- * the export leaves it in place.
+ * The whole board. The overlay keeps a copy of the table header on top while it scrolls (see Overlay).
  */
-export function Board({ b, sticky = false }: { b: BoardData; sticky?: boolean }) {
+export function Board({ b }: { b: BoardData }) {
   return (
-    <div data-testid="board" className="relative bg-white" style={{ fontFamily: '"Alumni Sans Variable", var(--font-display)', width: BOARD_W, minHeight: boardHeight(b.runners.length) }}>
+    <div data-testid="board" className="relative bg-white" style={{ fontFamily: BOARD_FONT, width: BOARD_W, minHeight: boardHeight(b.runners.length) }}>
       <div className="absolute inset-x-0 top-0 h-[420px] overflow-hidden">
         {b.photo && (
           <div className="absolute top-0 left-0 h-[420px] w-[1100px]">
@@ -223,7 +224,7 @@ export function Board({ b, sticky = false }: { b: BoardData; sticky?: boolean })
       <Logo className="absolute top-[15px] left-[20px] w-[145px] drop-shadow-[0_1px_3px_rgb(0_0_0/.5)]" />
       <Title b={b} />
       <div className="absolute" style={{ left: TABLE_X, top: HEAD_Y, width: TABLE_W, bottom: BOTTOM }}>
-        <div className={cx("z-10 bg-white", sticky && "sticky top-0")}><TableHead b={b} /></div>
+        <TableHead b={b} />
         <div data-testid="rows" style={{ borderLeft: `1px solid ${LINE}`, borderRight: `1px solid ${LINE}` }}>
           {b.runners.map((h) => <Row key={h.number} b={b} h={h} />)}
         </div>
@@ -244,7 +245,8 @@ function Mark({ m }: { m?: string }) {
     "×": <path d="M5 5 L27 27 M27 5 L5 27" {...line} strokeWidth={3} strokeLinecap="round" />,
   };
   return (
-    <svg width="32" height="32" viewBox="0 0 32 32" aria-label={m || "-"}>
+    // ◎ (first choice) is red, as in Figma's Prediction component
+    <svg width="32" height="32" viewBox="0 0 32 32" aria-label={m || "-"} style={m === "◎" ? { color: GRADE_PILL.G2.color } : undefined}>
       {(m && shape[m]) || <path d="M4 16 H13 M19 16 H28" {...line} strokeWidth={3} />}
     </svg>
   );
