@@ -50,11 +50,11 @@ test("the dock scrolls the overlay freely and the table header stays on top", as
   // any position, not snapped to a row: 437 board px = 437 * 1920 / 1418 screen px
   await dock.getByLabel("ตำแหน่งตาราง").fill("437");
   await expect.poll(top).toBeCloseTo((437 * 1920) / 1418, 0);
-  // the header floats a gap below the top, with nothing of the board drawn above it
-  const head = await overlay.getByTestId("floating-head").boundingBox();
+  // the header floats a gap below the top, on a white band that hides the board above it
+  const head = await overlay.getByTestId("floating-head").getByTestId("table-head").boundingBox();
   expect(head!.y).toBeCloseTo((38 * 1920) / 1418, 0);
   await expect(overlay.getByTestId("floating-head")).toBeVisible();
-  expect(await board(overlay).evaluate((e) => e.style.clipPath)).toMatch(/^inset\(/);
+  expect(await overlay.getByTestId("floating-head").evaluate((e) => getComputedStyle(e).backgroundColor)).toBe("rgb(255, 255, 255)");
   // the mouse wheel over the dock preview scrolls too
   const preview = dock.getByTestId("scroll-preview");
   await preview.hover();
@@ -118,4 +118,21 @@ test("the top-left picture and the JPG / PDF export", async ({ context }) => {
     const d = await dl;
     expect(d.suggestedFilename()).toBe(`2026-11-29-12r-japan-cup.${ext}`);
   }
+});
+
+test("past races are edited one tab at a time as a labelled form", async ({ context }) => {
+  const { dock, overlay } = await open(context);
+  await dock.getByRole("tab", { name: "ม้า" }).click();
+  const ed = dock.getByTestId("runner-editor").first();
+  await ed.locator("summary").click();
+  await ed.getByRole("tab", { name: "ครั้งก่อน", exact: true }).click();
+  await ed.getByLabel("ชื่อรายการ").fill("Tenno Sho (Spring) X");
+  await expect(overlay.locator("[data-no='1']").getByTestId("past").nth(1)).toContainText("TENNO SHO (SPRING) X");
+  // removing the last race leaves an empty tab with an add button
+  await ed.getByRole("tab", { name: "2 ครั้งก่อน", exact: true }).click();
+  await ed.getByRole("button", { name: /^ลบเบอร์ 1/ }).click();
+  await expect(ed.getByRole("tab", { name: "2 ครั้งก่อน +" })).toBeVisible();
+  await ed.getByRole("tab", { name: "2 ครั้งก่อน +" }).click();
+  await ed.getByRole("button", { name: "+ เพิ่มผลงาน 2 ครั้งก่อน" }).click();
+  await expect(ed.getByLabel("วันที่")).toBeVisible();
 });

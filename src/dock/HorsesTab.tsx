@@ -3,6 +3,7 @@ import { Button } from "@otamasing/broadcast-shared/components/Button";
 import { Section, hintClass } from "@otamasing/broadcast-shared/components/Section";
 import { Switch } from "@otamasing/broadcast-shared/components/Switch";
 import { SilksPicker } from "@otamasing/broadcast-shared/components/SilksPicker";
+import { useState } from "react";
 import { cx } from "@otamasing/broadcast-shared/lib/cx";
 import { FORM_RACES, GRADES, MAX_RUNNERS, RUN_STYLES, SURFACES, newPastRace, newRunner, type Grade, type PastRace, type Runner } from "../lib/model";
 import { GRADE_PILL } from "../lib/labels";
@@ -72,9 +73,8 @@ function RunnerEditor({ h, taken, canRemove, set, remove }: { h: Runner; taken: 
         <Field id={id("silks")} label="ลายเสื้อ"><SilksPicker id={id("silks")} value={h.silks} onChange={(silks) => set({ silks })} selectClassName={inputClass} /></Field>
         <Switch on={h.scratched} label="ถอนตัว" onToggle={() => set({ scratched: !h.scratched })} />
         <h4 className="m-0 mt-1 text-[13px] font-medium">ผลงานล่าสุด ({h.form.length}/{FORM_RACES})</h4>
-        {h.form.map((r, i) => <PastEditor key={i} r={r} label={`เบอร์ ${h.number} รายการที่ ${i + 1}`} set={(p) => setForm(i, p)} remove={() => set({ form: h.form.filter((_, j) => j !== i) })} />)}
-        <div className="flex justify-between gap-1.5">
-          <Button disabled={h.form.length >= FORM_RACES} onClick={() => set({ form: [...h.form, newPastRace()] })}>+ เพิ่มผลงาน</Button>
+        <PastTabs h={h} id={id} set={set} setForm={setForm} />
+        <div className="flex justify-end">
           <Button variant="danger" disabled={!canRemove} onClick={remove}>ลบม้าตัวนี้</Button>
         </div>
       </div>
@@ -82,38 +82,72 @@ function RunnerEditor({ h, taken, canRemove, set, remove }: { h: Runner; taken: 
   );
 }
 
-function PastEditor({ r, label, set, remove }: { r: PastRace; label: string; set: (p: Partial<PastRace>) => void; remove: () => void }) {
-  const input = (k: "date" | "round" | "name" | "course" | "time" | "jockey" | "other", ph: string, type = "text") => (
-    <input aria-label={`${label} ${ph}`} placeholder={ph} className={inputClass} type={type} value={r[k]} onChange={(e) => (k === "date" && !e.target.value) || set({ [k]: e.target.value })} />
+const PAST_TABS = ["ล่าสุด", "ครั้งก่อน", "2 ครั้งก่อน"];
+
+/** One tab per past-race slot (newest first); the open tab shows that race as a labelled form. */
+function PastTabs({ h, id, set, setForm }: { h: Runner; id: (k: string) => string; set: (p: Partial<Runner>) => void; setForm: (i: number, p: Partial<PastRace>) => void }) {
+  const [tab, setTab] = useState(0);
+  const i = Math.min(tab, h.form.length); // a slot past the next free one can't be opened
+  return (
+    <div className="border border-line">
+      <div className="grid border-b border-line" style={{ gridTemplateColumns: `repeat(${FORM_RACES}, minmax(0, 1fr))` }} role="tablist" aria-label={`ผลงานเบอร์ ${h.number}`}>
+        {Array.from({ length: FORM_RACES }, (_, k) => (
+          <button key={k} type="button" role="tab" aria-selected={i === k} disabled={k > h.form.length} onClick={() => setTab(k)}
+            className={cx("px-1 py-1.5 text-[13px] disabled:opacity-40", i === k ? "bg-navy font-medium text-ink" : "text-ink-muted")}>
+            {PAST_TABS[k] ?? `${k} ครั้งก่อน`}{h.form[k] ? "" : " +"}
+          </button>
+        ))}
+      </div>
+      <div className="p-2" role="tabpanel">
+        {h.form[i] ? (
+          <PastEditor r={h.form[i]} id={(k) => id(`f${i}-${k}`)} label={`เบอร์ ${h.number} ${PAST_TABS[i] ?? ""}`} set={(p) => setForm(i, p)}
+            remove={() => { set({ form: h.form.filter((_, j) => j !== i) }); setTab(Math.max(0, i - 1)); }} />
+        ) : (
+          <Button onClick={() => set({ form: [...h.form, newPastRace()] })}>+ เพิ่มผลงาน {PAST_TABS[i] ?? ""}</Button>
+        )}
+      </div>
+    </div>
   );
-  const number = (k: "distanceM" | "finish" | "field" | "rating" | "weight", ph: string) => (
-    <input aria-label={`${label} ${ph}`} placeholder={ph} className={inputClass} type="number" step={k === "weight" ? 0.5 : 1} value={r[k] ?? ""} onChange={(e) => set({ [k]: num(e.target.value, k !== "weight") })} />
+}
+
+function PastEditor({ r, id, label, set, remove }: { r: PastRace; id: (k: string) => string; label: string; set: (p: Partial<PastRace>) => void; remove: () => void }) {
+  const input = (k: "date" | "round" | "name" | "course" | "time" | "jockey" | "other", name: string, type = "text", ph = "") => (
+    <Field id={id(k)} label={name}>
+      <input id={id(k)} placeholder={ph} className={inputClass} type={type} value={r[k]} onChange={(e) => (k === "date" && !e.target.value) || set({ [k]: e.target.value })} />
+    </Field>
+  );
+  const number = (k: "distanceM" | "finish" | "field" | "rating" | "weight", name: string) => (
+    <Field id={id(k)} label={name}>
+      <input id={id(k)} className={inputClass} type="number" step={k === "weight" ? 0.5 : 1} value={r[k] ?? ""} onChange={(e) => set({ [k]: num(e.target.value, k !== "weight") })} />
+    </Field>
   );
   return (
-    <div className="grid grid-cols-3 gap-1 border-l-2 border-line pl-1.5">
+    <div className="grid gap-1.5">
       {input("date", "วันที่", "date")}
-      {input("round", "เรซ")}
-      <select aria-label={`${label} เกรด`} className={inputClass} value={r.grade ?? ""} onChange={(e) => set({ grade: (e.target.value || null) as Grade | null })}>
-        <option value="">ไม่มีเกรด</option>
-        {GRADES.map((g) => <option key={g} value={g}>{GRADE_PILL[g].label}</option>)}
-      </select>
-      <span className="col-span-3">{input("name", "ชื่อรายการ")}</span>
-      {input("course", "สนาม")}
-      <select aria-label={`${label} พื้นสนาม`} className={inputClass} value={r.surface} onChange={(e) => set({ surface: e.target.value as PastRace["surface"] })}>
-        {SURFACES.map((s) => <option key={s}>{s}</option>)}
-      </select>
-      {number("distanceM", "ระยะ")}
-      {number("finish", "อันดับ")}
-      {number("field", "จากกี่ตัว")}
+      {input("round", "เรซที่", "text", "11R")}
+      <Field id={id("grade")} label="เกรด">
+        <select id={id("grade")} className={inputClass} value={r.grade ?? ""} onChange={(e) => set({ grade: (e.target.value || null) as Grade | null })}>
+          <option value="">ไม่มีเกรด</option>
+          {GRADES.map((g) => <option key={g} value={g}>{GRADE_PILL[g].label}</option>)}
+        </select>
+      </Field>
+      {input("name", "ชื่อรายการ")}
+      {input("course", "สนาม", "text", "Kyoto")}
+      <Field id={id("surface")} label="พื้นสนาม">
+        <select id={id("surface")} className={inputClass} value={r.surface} onChange={(e) => set({ surface: e.target.value as PastRace["surface"] })}>
+          {SURFACES.map((s) => <option key={s}>{s}</option>)}
+        </select>
+      </Field>
+      {number("distanceM", "ระยะ (เมตร)")}
+      {number("finish", "อันดับที่เข้า")}
+      {number("field", "จำนวนม้าในเรซ")}
       {number("rating", "เรตติ้ง")}
-      {input("time", "เวลา")}
-      {input("jockey", "จ็อกกี้")}
-      {number("weight", "น้ำหนัก")}
-      <span className="col-span-2">{input("other", "ผู้ชนะ (หรือที่ 2 ถ้าชนะเอง)")}</span>
-      <span className="flex items-center gap-1">
-        <span className="flex-1"><FlagPicker label={`${label} ธงจ็อกกี้`} value={r.jockeyCountry} onChange={(jockeyCountry) => set({ jockeyCountry })} /></span>
-        <Button aria-label={`ลบ${label}`} onClick={remove}>ลบ</Button>
-      </span>
+      {input("time", "เวลา", "text", "2:24.3")}
+      {input("jockey", "จ็อกกี้", "text", "C.Lemaire")}
+      <Field id={id("jc")} label="ธงจ็อกกี้"><FlagPicker label={`${label} ธงจ็อกกี้`} value={r.jockeyCountry} onChange={(jockeyCountry) => set({ jockeyCountry })} /></Field>
+      {number("weight", "น้ำหนัก (kg)")}
+      {input("other", "ผู้ชนะ / ที่ 2", "text", "ที่ 2 ถ้าม้าตัวนี้ชนะเอง")}
+      <div className="flex justify-end"><Button variant="danger" aria-label={`ลบ${label}`} onClick={remove}>ลบผลงานนี้</Button></div>
     </div>
   );
 }
