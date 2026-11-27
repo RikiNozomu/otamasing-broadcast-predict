@@ -10,7 +10,7 @@ import { FitText } from "@otamasing/broadcast-shared/components/FitText";
 import { Logo } from "@otamasing/broadcast-shared/components/Logo";
 import { Silks } from "@otamasing/broadcast-shared/components/Silks";
 import { cx } from "@otamasing/broadcast-shared/lib/cx";
-import { FORM_RACES, type Board as BoardData, type PastRace, type Runner } from "../lib/model";
+import { FORM_RACES, photoTransform, type Board as BoardData, type PastRace, type Runner } from "../lib/model";
 import { courseLine, dotDate, finishBg, GRADE_PILL, ordinal, raceInfo, ratingColor, ratingValue, RUN_STYLE_COLOR } from "../lib/labels";
 
 export const BOARD_W = 1418;
@@ -193,8 +193,10 @@ function Title({ b }: { b: BoardData }) {
       </div>
       {r.round && (
         <span data-testid="round" className="flex h-[102px] min-w-[122px] items-center justify-center rounded-[10px] bg-[#00157D] px-3 leading-none font-bold text-white" style={{ fontFamily: '"Alumni Sans", sans-serif' }}>
-          <span className="text-[59px]">{r.round.replace(/R$/i, "")}</span>
-          {/R$/i.test(r.round) && <span className="text-[48px]">R</span>}
+          <span className="flex items-baseline">
+            <span className="text-[59px]">{r.round.replace(/R$/i, "")}</span>
+            {/R$/i.test(r.round) && <span className="text-[48px]">R</span>}
+          </span>
         </span>
       )}
     </div>
@@ -211,7 +213,7 @@ export function Board({ b, sticky = false }: { b: BoardData; sticky?: boolean })
       <div className="absolute inset-x-0 top-0 h-[420px] overflow-hidden">
         {b.photo && (
           <div className="absolute top-0 left-0 h-[420px] w-[1100px]">
-            <img data-testid="photo" src={b.photo} alt="" className="size-full object-cover" />
+            <img data-testid="photo" src={b.photo} alt="" className="size-full object-cover" style={{ transform: photoTransform(b.photoPos) }} />
             {/* fades drawn as white gradients (the JPG / PDF export can't draw CSS masks) */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,transparent_35%,#fff_92%)]" />
           </div>

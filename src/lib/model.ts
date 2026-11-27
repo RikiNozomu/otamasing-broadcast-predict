@@ -108,6 +108,16 @@ export const StyleSchema = z.object({
 });
 export type Style = z.infer<typeof StyleSchema>;
 
+export const PhotoPosSchema = z.object({
+  x: z.number().min(-2000).max(2000).default(0),
+  y: z.number().min(-2000).max(2000).default(0),
+  zoom: z.number().min(0.2).max(5).default(1),
+  rotate: z.number().min(-180).max(180).default(0),
+});
+export type PhotoPos = z.infer<typeof PhotoPosSchema>;
+export const PHOTO_W = 1100, PHOTO_H = 420;
+export const photoTransform = (p: PhotoPos) => `translate(${p.x}px, ${p.y}px) rotate(${p.rotate}deg) scale(${p.zoom})`;
+
 export const BoardSchema = z
   .object({
     version: z.literal(1).default(1),
@@ -117,6 +127,8 @@ export const BoardSchema = z
     runners: z.array(RunnerSchema).min(1, "ต้องมีม้าอย่างน้อย 1 ตัว").max(MAX_RUNNERS, `ม้าได้ไม่เกิน ${MAX_RUNNERS} ตัว`),
     /** The top-left picture as a data: URL (JPEG), so it travels inside the JSON; null = none. */
     photo: z.string().regex(/^data:image\//, "รูปต้องเป็น data:image/...").nullable().default(null),
+    /** How the photo sits in its 1100×420 frame: offset in board px, zoom (1 = cover), rotation in degrees. */
+    photoPos: PhotoPosSchema.default({}),
   })
   .superRefine((b, ctx) => {
     const seen = new Set<number>();

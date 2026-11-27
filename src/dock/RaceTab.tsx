@@ -2,8 +2,9 @@
 import { Button, buttonClass } from "@otamasing/broadcast-shared/components/Button";
 import { Section, hintClass } from "@otamasing/broadcast-shared/components/Section";
 import { Switch } from "@otamasing/broadcast-shared/components/Switch";
-import { GRADES, SURFACES, type Grade, type Race, type Scheme, type Style } from "../lib/model";
-import { setData, update, useData } from "../lib/store";
+import { useEffect, useRef, useState } from "react";
+import { GRADES, PHOTO_H, PHOTO_W, photoTransform, PhotoPosSchema, SURFACES, type Grade, type PhotoPos, type Race, type Scheme, type Style } from "../lib/model";
+import { getData, setData, update, useData } from "../lib/store";
 import { shrinkPicture } from "../lib/exportImage";
 import { GRADE_PILL } from "../lib/labels";
 import { Field, inputClass } from "./Field";
@@ -26,7 +27,7 @@ export function RaceTab({ toast }: { toast: Toast }) {
     if (!f) return;
     try {
       const photo = await shrinkPicture(f);
-      const ok = setData({ ...d, photo });
+      const ok = setData({ ...d, photo, photoPos: PhotoPosSchema.parse({}) });
       toast(ok ? "ใส่รูปแล้ว" : "รูปใหญ่เกินกว่าจะเก็บในเบราว์เซอร์ ลองรูปที่เล็กลง", !ok);
     } catch {
       toast("เปิดไฟล์รูปนี้ไม่ได้", true);
@@ -58,7 +59,7 @@ export function RaceTab({ toast }: { toast: Toast }) {
         {text("timeZone", "เขตเวลา")}
       </Section>
       <Section title="รูปซ้ายบน">
-        {d.photo ? <img src={d.photo} alt="รูปซ้ายบน" data-testid="photo-preview" className="max-h-28 w-auto justify-self-start border border-line" /> : <span className={hintClass}>ยังไม่มีรูป</span>}
+        {d.photo ? <PhotoFrame photo={d.photo} pos={d.photoPos} /> : <span className={hintClass}>ยังไม่มีรูป</span>}
         <div className="flex gap-1.5">
           <label className={buttonClass("primary")}>
             {d.photo ? "เปลี่ยนรูป…" : "เลือกรูป…"}
@@ -66,7 +67,8 @@ export function RaceTab({ toast }: { toast: Toast }) {
           </label>
           {d.photo && <Button onClick={() => update((x) => ({ ...x, photo: null }))}>เอารูปออก</Button>}
         </div>
-        <span className={hintClass}>ย่อเหลือไม่เกิน 1600px ให้อัตโนมัติ แล้วเก็บไว้ในไฟล์ JSON ด้วย</span>
+        {d.photo && <PhotoSliders pos={d.photoPos} />}
+        <span className={hintClass}>ลากบนภาพเพื่อเลื่อน หมุนล้อเมาส์เพื่อซูม · ย่อเหลือไม่เกิน 1600px ให้อัตโนมัติ แล้วเก็บไว้ในไฟล์ JSON ด้วย พร้อมตำแหน่ง ซูม และมุมหมุน</span>
       </Section>
       <Section title="สีเบอร์ซอง (BK) และเบอร์ม้า (PP)">
         <Switch on={S.showDraw} label="แสดงช่อง BK (ซอง)" onToggle={() => setStyle({ showDraw: !S.showDraw })} />
@@ -84,5 +86,54 @@ export function RaceTab({ toast }: { toast: Toast }) {
         {!S.autoDraw && <span className={hintClass}>ใส่เลขซองของแต่ละตัวในแท็บม้า</span>}
       </Section>
     </>
+  );
+}
+
+const setPos = (p: Partial<PhotoPos>) => update((x) => ({ ...x, photoPos: PhotoPosSchema.parse({ ...x.photoPos, ...p }) }));
+const clampZoom = (z: number) => Math.round(Math.min(5, Math.max(0.2, z)) * 100) / 100;
+
+/** The photo's frame as on the board (fade not drawn): drag to move, wheel to zoom. */
+function PhotoFrame({ photo, pos }: { photo: string; pos: PhotoPos }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [k, setK] = useState(0.3);
+  const drag = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setK(el.clientWidth / PHOTO_W));
+    ro.observe(el);
+    // non-passive, so the dock page itself doesn't scroll
+    const wheel = (e: WheelEvent) => { e.preventDefault(); setPos({ zoom: clampZoom(getData().photoPos.zoom * Math.exp(-e.deltaY / 500)) }); };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => { ro.disconnect(); el.removeEventListener("wheel", wheel); };
+  }, []);
+  return (
+    <div ref={box} data-testid="photo-frame" className="relative w-full cursor-grab touch-none overflow-hidden border border-line bg-white active:cursor-grabbing" style={{ aspectRatio: `${PHOTO_W} / ${PHOTO_H}` }}
+      onPointerDown={(e) => { const p = getData().photoPos; drag.current = { x: e.clientX, y: e.clientY, px: p.x, py: p.y }; e.currentTarget.setPointerCapture(e.pointerId); }}
+      onPointerMove={(e) => { const g = drag.current; if (g) setPos({ x: Math.round(g.px + (e.clientX - g.x) / k), y: Math.round(g.py + (e.clientY - g.y) / k) }); }}
+      onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}>
+      <div className="pointer-events-none absolute top-0 left-0 origin-top-left" style={{ width: PHOTO_W, height: PHOTO_H, transform: `scale(${k})` }}>
+        <img src={photo} alt="รูปซ้ายบน" data-testid="photo-preview" draggable={false} className="size-full object-cover" style={{ transform: photoTransform(pos) }} />
+      </div>
+    </div>
+  );
+}
+
+function PhotoSliders({ pos }: { pos: PhotoPos }) {
+  const row = (label: string, key: keyof PhotoPos, min: number, max: number, step: number, show: string) => (
+    <label className="grid grid-cols-[4.5rem_1fr_3.5rem] items-center gap-2 text-[13px]">
+      <span>{label}</span>
+      <input type="range" aria-label={label} min={min} max={max} step={step} value={pos[key]} onChange={(e) => setPos({ [key]: +e.target.value })} />
+      <span className="text-right tabular-nums">{show}</span>
+    </label>
+  );
+  return (
+    <div className="grid gap-1">
+      {row("แนวนอน", "x", -PHOTO_W, PHOTO_W, 1, `${pos.x}`)}
+      {row("แนวตั้ง", "y", -PHOTO_H, PHOTO_H, 1, `${pos.y}`)}
+      {row("ซูม", "zoom", 0.2, 5, 0.01, `${Math.round(pos.zoom * 100)}%`)}
+      {row("หมุน", "rotate", -180, 180, 1, `${pos.rotate}°`)}
+      <Button onClick={() => setPos(PhotoPosSchema.parse({}))}>รีเซ็ตตำแหน่งรูป</Button>
+    </div>
   );
 }

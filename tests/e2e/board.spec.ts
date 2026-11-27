@@ -96,6 +96,15 @@ test("the top-left picture and the JPG / PDF export", async ({ context }) => {
   const png = await dock.evaluate(() => { const c = document.createElement("canvas"); c.width = 40; c.height = 30; c.getContext("2d")!.fillRect(0, 0, 40, 30); return c.toDataURL("image/png"); });
   await dock.getByTestId("photo-file").setInputFiles({ name: "p.png", mimeType: "image/png", buffer: Buffer.from(png.split(",")[1], "base64") });
   await expect(overlay.getByTestId("photo")).toHaveAttribute("src", /^data:image\/jpeg/);
+  await dock.getByRole("slider", { name: "ซูม" }).fill("2");
+  await dock.getByRole("slider", { name: "หมุน" }).fill("15");
+  await dock.getByRole("slider", { name: "แนวนอน" }).fill("40");
+  await expect(overlay.getByTestId("photo")).toHaveAttribute("style", /translate\(40px, 0px\) rotate\(15deg\) scale\(2\)/);
+  const f = (await dock.getByTestId("photo-frame").boundingBox())!;
+  await dock.mouse.move(f.x + 50, f.y + 30); await dock.mouse.down(); await dock.mouse.move(f.x + 50, f.y + 60); await dock.mouse.up();
+  await expect(dock.getByRole("slider", { name: "แนวตั้ง" })).not.toHaveValue("0");
+  await dock.getByRole("button", { name: "รีเซ็ตตำแหน่งรูป" }).click();
+  await expect(overlay.getByTestId("photo")).toHaveAttribute("style", /rotate\(0deg\) scale\(1\)/);
   await dock.getByRole("tab", { name: "ภาพรวม" }).click();
   // no save dialog in the test browser: the file downloads
   await dock.evaluate(() => { (window as unknown as { showSaveFilePicker?: unknown }).showSaveFilePicker = undefined; });

@@ -45,7 +45,8 @@ whole board. Only `race.date`, `race.name` and the runners' `number` are require
       ]
     }
   ],
-  "photo": "data:image/jpeg;base64,…"     // top-left picture, or null
+  "photo": "data:image/jpeg;base64,…",    // top-left picture, or null
+  "photoPos": { "x": 0, "y": 0, "zoom": 1, "rotate": 0 }  // optional: offset px, zoom (1 = fill), degrees
 }
 ```
 
