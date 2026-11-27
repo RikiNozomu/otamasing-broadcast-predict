@@ -1,12 +1,11 @@
 /**
  * The OBS Browser Source: the board scaled to the page width, scrolled to the dock's position
- * (smoothly). Once the title has scrolled away the table header floats HEAD_GAP below the top;
- * everything else, background included, keeps scrolling.
+ * (smoothly), on a see-through page. Once the title has scrolled away the table header floats HEAD_GAP
+ * below the top and the rows scroll inside under it; the OBS scene stays put behind and around the table.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { cx } from "@otamasing/broadcast-shared/lib/cx";
 import { useData } from "../lib/store";
-import { Board, BOARD_FONT, BOARD_W, boardHeight, HEAD_Y, TABLE_W, TABLE_X, TableHead } from "../board/Board";
+import { Board, BOARD_FONT, BOARD_W, boardHeight, HEAD_H, HEAD_Y, TABLE_W, TABLE_X, TableHead } from "../board/Board";
 
 /** Height of the board seen on a 16:9 screen (the board is 1418 px wide). */
 export const VIEW_H = Math.round((BOARD_W * 9) / 16);
@@ -36,7 +35,7 @@ export function ScrolledBoard() {
   // normally the board fills the width and scrolls; "fit" shrinks it to the height so the whole board shows, centred
   const zoom = d.fit ? Math.min(size.w / BOARD_W, size.h / boardHeight(d.runners.length)) : size.w / BOARD_W;
   const target = useRef(0);
-  target.current = d.fit ? 0 : d.scroll * zoom;
+  target.current = d.fit ? 0 : d.scroll * zoom; // fit: eases back to the top
   const fitRef = useRef(d.fit);
   fitRef.current = d.fit;
   useEffect(() => {
@@ -44,13 +43,15 @@ export function ScrolledBoard() {
     const step = () => {
       const el = box.current;
       if (el) {
-        if (fitRef.current) el.scrollTop = 0;
-        const cur = el.scrollTop, diff = target.current - cur;
+        // the box's own offset from the top (see below) is not part of the scroll position
+        const off = parseFloat(el.style.top) || 0, cur = el.scrollTop - off, diff = target.current - cur;
         // ease 18% of the way each frame (at least 1 px, since scrollTop rounds), then land exactly
-        if (Math.abs(diff) > 1) el.scrollTop = cur + Math.sign(diff) * Math.max(1, Math.abs(diff) * 0.18);
-        else if (diff !== 0) el.scrollTop = target.current;
-        // past the point where the board's own header reaches HEAD_GAP: show the floating copy (only the header sticks)
-        const stuck = el.scrollTop / (el.clientWidth / BOARD_W) > HEAD_Y - HEAD_GAP;
+        const pos = Math.abs(diff) > 1 ? cur + Math.sign(diff) * Math.max(1, Math.abs(diff) * 0.18) : target.current;
+        // past the point where the board's own header reaches HEAD_GAP: show the floating copy and move the board's box
+        // down to just under it, so the rows scroll inside under the header and the scene stays behind (a clip-path came out black in OBS)
+        const z = el.clientWidth / BOARD_W, stuck = !fitRef.current && pos / z > HEAD_Y - HEAD_GAP, top = stuck ? (HEAD_GAP + HEAD_H) * z : 0;
+        el.style.top = `${top}px`;
+        el.scrollTop = pos + top;
         if (head.current) head.current.style.visibility = stuck ? "visible" : "hidden";
       }
       raf = requestAnimationFrame(step);
@@ -60,8 +61,8 @@ export function ScrolledBoard() {
   }, []);
   return (
     <>
-      <div ref={box} data-testid="scroller" className={cx("absolute inset-0 overflow-hidden", !d.fit && "bg-white")}>
-        <div className="mx-auto w-fit" style={{ zoom }}><Board b={d} /></div>
+      <div ref={box} data-testid="scroller" className="absolute inset-0 overflow-hidden">
+        <div className="mx-auto w-fit" style={{ zoom }}><Board b={d} seeThrough /></div>
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0" style={{ zoom }}>
         <div ref={head} data-testid="floating-head" className="invisible absolute" style={{ fontFamily: BOARD_FONT, top: HEAD_GAP, left: TABLE_X, width: TABLE_W }}><TableHead b={d} /></div>
