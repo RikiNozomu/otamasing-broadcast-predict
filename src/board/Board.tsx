@@ -4,7 +4,7 @@
  * The JPG / PDF export draws the same board at full height.
  */
 import type { CSSProperties, ReactNode } from "react";
-import { boxColors, drawOf, type Pair } from "@otamasing/broadcast-shared/lib/colors";
+import { boxColors, drawOf, numberFont, type Pair } from "@otamasing/broadcast-shared/lib/colors";
 import { Flag } from "@otamasing/broadcast-shared/components/Flag";
 import { FitText } from "@otamasing/broadcast-shared/components/FitText";
 import { Logo } from "@otamasing/broadcast-shared/components/Logo";
@@ -46,7 +46,7 @@ const BoardFlag = ({ code, className }: { code: string; className?: string }) =>
 /** The BK / PP cell: the whole cell takes the box colour; plain = black number on white. */
 function NumberCell({ value, colors }: { value: number; colors: Pair | null }) {
   const [bg, fg] = colors ?? ["#FFFFFF", "#000000"];
-  return <div className="flex items-center justify-center text-[34px] font-bold" style={{ fontFamily: '"IBM Plex Mono", monospace', background: bg, color: fg, borderRight: `1px solid ${LINE}` }}>{value}</div>;
+  return <div className="flex items-center justify-center text-[34px] font-bold" style={{ ...numberFont, background: bg, color: fg, borderRight: `1px solid ${LINE}` }}>{value}</div>;
 }
 
 /** Four stacked boxes in the style's colour, with a triangle in the horse's running style. */
